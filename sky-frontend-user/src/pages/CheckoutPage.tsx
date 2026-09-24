@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import Navbar from '@/components/Navbar';
-import { getAddressList, getDefaultAddress } from '@/lib/api/address';
+import { getAddressList } from '@/lib/api/address';
 import { simulatePayment, submitOrder } from '@/lib/api/order';
 import { useAuthStore } from '@/store/auth';
 import { useCartStore } from '@/store/cart';
@@ -19,8 +19,9 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (!authenticated) { navigate('/login'); return; }
     void fetchCart();
-    Promise.all([getAddressList(), getDefaultAddress()]).then(([list, defaultAddress]) => {
-      const values = list.data || []; setAddresses(values); setAddressId(defaultAddress.data?.id ?? values[0]?.id ?? null);
+    getAddressList().then((list) => {
+      setAddresses(list.data || []);
+      setAddressId(null);
     });
   }, [authenticated, fetchCart, navigate]);
   const placeOrder = async () => {

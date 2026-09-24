@@ -1,5 +1,5 @@
 import { FormEvent, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import Navbar from '@/components/Navbar';
 import { login } from '@/lib/api/order';
@@ -8,6 +8,7 @@ import { useCartStore } from '@/store/cart';
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const authenticate = useAuthStore((state) => state.login);
   const syncToServer = useCartStore((state) => state.syncToServer);
   const [form, setForm] = useState({ email: '', password: '' });
@@ -21,7 +22,8 @@ export default function LoginPage() {
       authenticate(response.data);
       await syncToServer();
       toast.success('Login successful');
-      navigate('/');
+      const destination = (location.state as { from?: string } | null)?.from || '/';
+      navigate(destination, { replace: true });
     } finally { setLoading(false); }
   };
 

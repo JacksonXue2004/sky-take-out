@@ -18,7 +18,12 @@ export default function AddressPage({ startAdding = false }: { startAdding?: boo
   useEffect(() => { if (!authenticated) navigate('/login'); else void load(); }, [authenticated, navigate]);
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    await addAddress(form);
+    const normalized = Object.fromEntries(
+      Object.entries(form).map(([key, value]) => [key, typeof value === 'string' ? value.trim() : value]),
+    ) as typeof form;
+    const requiredFields = [normalized.consignee, normalized.phone, normalized.provinceName, normalized.cityName, normalized.districtName, normalized.detail];
+    if (requiredFields.some((value) => !value)) return toast.error('Please complete the delivery address');
+    await addAddress(normalized);
     toast.success('Address saved');
     setForm(emptyForm); setAdding(false); await load();
   };

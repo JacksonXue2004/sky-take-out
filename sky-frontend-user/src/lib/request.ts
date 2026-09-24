@@ -2,6 +2,8 @@ import axios from 'axios';
 import { API_BASE_URL, API_CONFIG, TOKEN_HEADER, getToken, removeToken } from './config';
 import toast from 'react-hot-toast';
 
+export const AUTH_EXPIRED_EVENT = 'sky:auth-expired';
+
 const request = axios.create({
   baseURL: API_BASE_URL,
   timeout: API_CONFIG.timeout,
@@ -30,14 +32,15 @@ request.interceptors.response.use(
       return res;
     }
     // 否则显示错误信息
-    toast.error(res.msg || '请求失败');
-    return Promise.reject(new Error(res.msg || '请求失败'));
+    toast.error(res.msg || 'Request failed');
+    return Promise.reject(new Error(res.msg || 'Request failed'));
   },
   (error) => {
     if (error.response?.status === 401) {
       // Token 无效，清除 token 但不强制跳转
       // 让业务页面自行处理未登录状态
       removeToken();
+      window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT));
       // 只在非公开接口显示错误
       const url = error.config?.url || '';
       const publicApis = ['/user/category/list', '/user/dish/list', '/user/setmeal/list', '/user/shop/status', '/user/shoppingCart'];
@@ -53,7 +56,7 @@ request.interceptors.response.use(
       } else if (error.message === 'Network Error') {
         toast.error('Network error, please check your connection');
       } else {
-        toast.error(error.message || '请求失败');
+        toast.error(error.message || 'Request failed');
       }
     }
     return Promise.reject(error);
