@@ -1,0 +1,30 @@
+# IDE and operating system
+.idea/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Java build output
+target/
+**/target/
+*.log
+
+# Node.js build output
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+.next/
+**/.next/
+*.tsbuildinfo
+
+# Local environment and credentials
+.env
+.env.*
+!.env.example
+sky-server/src/main/resources/application-dev.yml
+sky-server/src/main/resources/application.yml
+
+# Local extraction and migration working directories
+.asset-extract/
+.vue-src-extracted/

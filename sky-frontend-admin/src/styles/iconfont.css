@@ -1,0 +1,32 @@
+/* Same iconfont the original admin used (Alibaba iconfont CDN). */
+@font-face {
+  font-family: iconfont;
+  src: url(//at.alicdn.com/t/font_3388893_e5ffotpqbv7.woff2?t=1654065128569) format('woff2'),
+    url(//at.alicdn.com/t/font_3388893_e5ffotpqbv7.woff?t=1654065128569) format('woff'),
+    url(//at.alicdn.com/t/font_3388893_e5ffotpqbv7.ttf?t=1654065128569) format('truetype');
+}
+.iconfont {
+  font-family: iconfont !important;
+  font-size: 16px;
+  font-style: normal;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+.icon-order:before { content: '\E607'; }
+.icon-statistics:before { content: '\E608'; }
+.icon-combo:before { content: '\E609'; }
+.icon-dish:before { content: '\E60A'; }
+.icon-employee:before { content: '\E60B'; }
+.icon-category:before { content: '\E60C'; }
+.icon-inform:before { content: '\E60D'; }
+.icon-lock:before { content: '\E60F'; }
+.icon-user:before { content: '\E610'; }
+.icon-clear:before { content: '\E611'; }
+.icon-download:before { content: '\E613'; }
+.icon-open:before { content: '\E614'; }
+.icon-stop:before { content: '\E615'; }
+.icon-staySway:before { content: '\E616'; }
+.icon-all:before { content: '\E617'; }
+.icon-cancel:before { content: '\E618'; }
+.icon-complete:before { content: '\E619'; }
+.icon-waiting:before { content: '\E61A'; }

@@ -1,0 +1,25 @@
+sky:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    host: localhost
+    port: 3306
+    database: sky_take_out
+    username: root
+    password: replace-with-local-password
+  alioss:
+    endpoint: replace-with-oss-endpoint
+    access-key-id: replace-with-access-key-id
+    access-key-secret: replace-with-access-key-secret
+    bucket-name: replace-with-bucket-name
+  redis:
+    host: localhost
+    port: 6379
+    password: replace-with-redis-password
+    database: 10
+  stripe:
+    secret-key: ""
+    publishable-key: ""
+    webhook-secret: ""
+    success-url: ""
+    cancel-url: ""
+

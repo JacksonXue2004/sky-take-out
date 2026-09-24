@@ -1,0 +1,118 @@
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  color: #333;
+  background: #f5f5f5;
+}
+
+/* ---- shared page chrome (ported from the original admin) ---- */
+.dashboard-container {
+  padding: 20px;
+}
+
+/* list-page toolbar */
+.tableBar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 12px;
+  margin-bottom: 20px;
+}
+.tableBar .tableLab {
+  color: #666;
+  margin-right: 4px;
+}
+.tableBar .spacer {
+  flex: 1;
+}
+
+/* status pill used in tables */
+.tableColumn-status {
+  display: inline-block;
+  position: relative;
+  padding-left: 14px;
+  color: #333;
+}
+.tableColumn-status:before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #47c176;
+}
+.tableColumn-status.stop-use {
+  color: #f56c6c;
+}
+.tableColumn-status.stop-use:before {
+  background: #f56c6c;
+}
+
+/* text-style action buttons in tables */
+.tableColumn-operation .blueBug {
+  color: #338aff;
+}
+.tableColumn-operation .delBut {
+  color: #fd4d4f;
+}
+
+/* white content card */
+.content-card {
+  background: #fff;
+  border-radius: 4px;
+  padding: 20px;
+}
+
+/* HeadLable */
+.HeadLable {
+  display: flex;
+  align-items: center;
+  height: 33px;
+  margin-bottom: 20px;
+}
+.HeadLable .goBack {
+  cursor: pointer;
+  color: #333;
+  margin-right: 12px;
+  display: inline-flex;
+  align-items: center;
+}
+.HeadLable .title {
+  font-size: 20px;
+  font-weight: 500;
+  color: #333;
+}
+
+/* empty state */
+.emptyPage {
+  text-align: center;
+  padding: 60px 0;
+  color: #999;
+}
+.emptyPage img {
+  width: 200px;
+  height: auto;
+}
+.emptyPage p {
+  margin-top: 12px;
+}
+
+/* pagination row */
+.pageList {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+}

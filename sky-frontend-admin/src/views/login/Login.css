@@ -1,0 +1,99 @@
+/* Ported from the original login styles (login.f8377ced.css) */
+.login {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  background-color: #333;
+}
+.login-box {
+  display: flex;
+  width: 1000px;
+  height: 474.38px;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.login-illustration {
+  width: 60%;
+  background: linear-gradient(135deg, #ffe08a 0%, #ffc200 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.login-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: #2f2f2f;
+  line-height: 1;
+  letter-spacing: 0.12em;
+}
+.login-brand-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 112px;
+  height: 112px;
+  margin-bottom: 18px;
+  border: 5px solid #2f2f2f;
+  border-radius: 50%;
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+.login-brand-name {
+  font-size: 38px;
+  font-weight: 800;
+}
+.login-brand-subtitle {
+  margin-top: 14px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.24em;
+}
+.login-form {
+  background: #fff;
+  width: 40%;
+  border-radius: 0 8px 8px 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.login-form .ant-form {
+  width: 260px;
+}
+.login-form-title {
+  min-height: 44px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 40px;
+}
+.login-brand-small {
+  flex-direction: row;
+  gap: 8px;
+}
+.login-brand-small .login-brand-mark {
+  width: 42px;
+  height: 42px;
+  margin: 0;
+  border-width: 2px;
+  font-size: 12px;
+}
+.login-brand-small .login-brand-name {
+  font-size: 20px;
+  letter-spacing: 0.06em;
+}
+.login-btn {
+  border-radius: 17px;
+  margin-top: 10px;
+  font-weight: 500;
+  color: #333 !important;
+  background-color: #ffc200 !important;
+  border: 0 !important;
+}
+.login-btn:hover,
+.login-btn:focus {
+  background-color: #ffc200 !important;
+  color: #fff !important;
+}

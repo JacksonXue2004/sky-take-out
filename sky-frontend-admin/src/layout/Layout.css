@@ -1,0 +1,147 @@
+.app-wrapper {
+  display: flex;
+  height: 100%;
+  width: 100%;
+}
+
+/* Sidebar */
+.sidebar-container {
+  width: 210px;
+  height: 100%;
+  background: #343744;
+  transition: width 0.28s;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.app-wrapper.hideSidebar .sidebar-container {
+  width: 64px;
+}
+.sidebar-container .logo {
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #2b2e39;
+  overflow: hidden;
+}
+.sidebar-container .logo img {
+  height: 28px;
+  width: auto;
+}
+.sidebar-container .ant-menu {
+  height: calc(100% - 50px);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.sidebar-container .iconfont {
+  font-size: 16px;
+}
+
+/* Main */
+.main-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Navbar */
+.navbar {
+  height: 50px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 21, 41, 0.08);
+  position: relative;
+  z-index: 10;
+}
+.navbar .statusBox {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.navbar .hamburger-container {
+  cursor: pointer;
+  font-size: 18px;
+  color: #333;
+  display: inline-flex;
+  align-items: center;
+}
+.navbar .businessBtn {
+  display: inline-block;
+  padding: 2px 12px;
+  border-radius: 11px;
+  font-size: 12px;
+  color: #333;
+  background: #fff3cd;
+  border: 1px solid #ffe08a;
+}
+.navbar .businessBtn.closing {
+  background: #f2f2f2;
+  border-color: #ddd;
+  color: #999;
+}
+.navbar .right-menu {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.navbar .operatingState {
+  cursor: pointer;
+  color: #333;
+  font-size: 14px;
+}
+
+/* App main */
+.app-main {
+  flex: 1;
+  overflow: auto;
+  background: #f5f5f5;
+}
+
+/* mobile drawer */
+.drawer-bg {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 999;
+}
+.app-wrapper.mobile .sidebar-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1000;
+  height: 100%;
+}
+.app-wrapper.mobile.hideSidebar .sidebar-container {
+  width: 210px;
+  transform: translateX(-210px);
+}
+
+/* business status radios */
+.status-radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+.status-radio {
+  display: flex !important;
+  align-items: flex-start;
+  white-space: normal;
+  height: auto;
+}
+.status-radio-title {
+  font-weight: 500;
+  color: #333;
+}
+.status-radio-desc {
+  color: #999;
+  font-size: 12px;
+  margin-top: 4px;
+}
