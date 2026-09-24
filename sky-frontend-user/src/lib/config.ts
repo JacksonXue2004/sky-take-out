@@ -1,5 +1,5 @@
 // API 基础配置
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+export const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 export const API_CONFIG = {
   timeout: 10000,
@@ -7,6 +7,7 @@ export const API_CONFIG = {
 
 // Token 管理
 export const TOKEN_KEY = 'token';
+export const TOKEN_HEADER = 'authentication';
 export const USER_KEY = 'user';
 
 export const getToken = () => {

@@ -1,9 +1,7 @@
-'use client';
-
 import { create } from 'zustand';
-import { User, LoginResponse } from '@/types';
-import { getToken, setToken as saveToken, removeToken } from '@/lib/config';
-import { getUserInfo } from '@/lib/api/order';
+import { persist } from 'zustand/middleware';
+import { LoginResponse, User } from '@/types';
+import { getToken, removeToken, setToken } from '@/lib/config';
 
 interface AuthState {
   user: User | null;
@@ -11,46 +9,23 @@ interface AuthState {
   isAuthenticated: boolean;
   login: (data: LoginResponse) => void;
   logout: () => void;
-  fetchUser: () => Promise<void>;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
-  user: null,
-  token: getToken(),
-  isAuthenticated: !!getToken(),
-
-  login: (data: LoginResponse) => {
-    saveToken(data.token);
-    set({
-      user: { id: data.id, email: data.email },
-      token: data.token,
-      isAuthenticated: true,
-    });
-  },
-
-  logout: () => {
-    removeToken();
-    set({
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (set) => ({
       user: null,
-      token: null,
-      isAuthenticated: false,
-    });
-  },
-
-  fetchUser: async () => {
-    try {
-      const res = await getUserInfo();
-      if (res.data) {
-        set({ user: res.data });
-      }
-    } catch {
-      // Token invalid, clear auth
-      removeToken();
-      set({
-        user: null,
-        token: null,
-        isAuthenticated: false,
-      });
-    }
-  },
-}));
+      token: getToken(),
+      isAuthenticated: Boolean(getToken()),
+      login: (data) => {
+        setToken(data.token);
+        set({ user: { id: data.id, email: data.email }, token: data.token, isAuthenticated: true });
+      },
+      logout: () => {
+        removeToken();
+        set({ user: null, token: null, isAuthenticated: false });
+      },
+    }),
+    { name: 'sky-auth', partialize: (state) => ({ user: state.user }) },
+  ),
+);

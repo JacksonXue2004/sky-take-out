@@ -1,5 +1,3 @@
-'use client';
-
 import { Dish, Setmeal, DishFlavor } from '@/types';
 import { useCartStore } from '@/store/cart';
 import toast from 'react-hot-toast';
@@ -66,7 +64,7 @@ export default function DishCard({ item, type }: DishCardProps) {
         )}
         <div className="flex items-center justify-between mt-3">
           <span className="text-xl font-bold text-orange-500">
-            ${(item.price / 100).toFixed(2)}
+            ${Number(item.price).toFixed(2)}
           </span>
           <button
             onClick={handleAddToCart}

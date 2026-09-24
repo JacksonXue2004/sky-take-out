@@ -1,36 +1,26 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Sky Take-Out Customer Frontend
 
-## Getting Started
+Customer ordering application built with React, TypeScript, Vite, React Router, Zustand, Axios, and Tailwind CSS.
 
-First, run the development server:
+## Local development
+
+The Spring Boot API must run on `http://localhost:8080`. Vite proxies `/user` requests to that server.
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Production build
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run build
+```
 
-## Learn More
+The static build is written to `dist/`. Configure the production web server with SPA fallback to `index.html` and proxy `/user` to the Spring Boot backend.
 
-To learn more about Next.js, take a look at the following resources:
+## Checkout behavior
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The portfolio demo does not require a third-party payment account. Its checkout calls the authenticated development simulation endpoint, which reuses the backend's existing payment-success, order-status, persistence, and merchant WebSocket notification workflow.

@@ -23,10 +23,10 @@ export const reduceCartItem = (data: {
   setmealId?: number;
   dishFlavor?: string;
 }) => {
-  return request.post('/user/shoppingCart/reduce', data);
+  return request.post('/user/shoppingCart/sub', data);
 };
 
 // 清空购物车
 export const clearCart = () => {
-  return request.delete('/user/shoppingCart/cleanUp');
+  return request.delete('/user/shoppingCart/clean');
 };

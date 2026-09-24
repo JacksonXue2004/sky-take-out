@@ -21,7 +21,7 @@ export const addAddress = (data: {
   detail: string;
   label?: string;
 }) => {
-  return request.post('/user/addressBook/add', data);
+  return request.post('/user/addressBook', data);
 };
 
 // 修改地址
@@ -39,20 +39,24 @@ export const updateAddress = (data: {
   detail: string;
   label?: string;
 }) => {
-  return request.put('/user/addressBook/update', data);
+  return request.put('/user/addressBook', data);
 };
 
 // 删除地址
 export const deleteAddress = (id: number) => {
-  return request.delete(`/user/addressBook/delete/${id}`);
+  return request.delete('/user/addressBook', { params: { id } });
 };
 
 // 设置默认地址
 export const setDefaultAddress = (id: number) => {
-  return request.put(`/user/addressBook/setDefault/${id}`);
+  return request.put('/user/addressBook/default', { id });
 };
 
 // 查询默认地址
 export const getDefaultAddress = () => {
-  return request.get('/user/addressBook/getDefault');
+  return request.get('/user/addressBook/default');
+};
+
+export const getAddressById = (id: number) => {
+  return request.get(`/user/addressBook/${id}`);
 };

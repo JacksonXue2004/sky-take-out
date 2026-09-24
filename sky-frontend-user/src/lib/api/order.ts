@@ -13,10 +13,6 @@ export const register = (data: { email: string; password: string }) => {
 };
 
 // 获取登录用户信息
-export const getUserInfo = () => {
-  return request.get('/user/user/getLoginUser');
-};
-
 // 下单
 export const submitOrder = (data: {
   addressBookId: number;
@@ -31,18 +27,18 @@ export const submitOrder = (data: {
 };
 
 // 订单支付（Stripe Checkout）
-export const payOrder = (orderNumber: string) => {
-  return request.post('/user/order/payment', { orderNumber });
+export const payOrder = (orderNumber: string, payMethod = 1) => {
+  return request.put('/user/order/payment', { orderNumber, payMethod });
 };
 
-// 支付成功回调（前端通知后端）
-export const paySuccess = (orderNumber: string) => {
-  return request.get(`/user/order/paySuccess/${orderNumber}`);
+// Development checkout: use the backend's existing paid-order workflow.
+export const simulatePayment = (orderNumber: string) => {
+  return request.put('/user/order/payment/simulate', { orderNumber, payMethod: 1 });
 };
 
 // 用户端订单分页查询
 export const getUserOrders = (params: { page: number; pageSize: number; status?: number }) => {
-  return request.get('/user/order/list', { params });
+  return request.get('/user/order/historyOrders', { params });
 };
 
 // 查询订单详情

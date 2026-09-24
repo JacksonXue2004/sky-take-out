@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { API_BASE_URL, API_CONFIG, getToken, removeToken } from './config';
+import { API_BASE_URL, API_CONFIG, TOKEN_HEADER, getToken, removeToken } from './config';
 import toast from 'react-hot-toast';
 
 const request = axios.create({
@@ -12,7 +12,7 @@ request.interceptors.request.use(
   (config) => {
     const token = getToken();
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+      config.headers[TOKEN_HEADER] = token;
     }
     return config;
   },

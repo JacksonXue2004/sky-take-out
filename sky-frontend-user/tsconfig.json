@@ -13,22 +13,22 @@
     "isolatedModules": true,
     "jsx": "react-jsx",
     "incremental": true,
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ],
+    "types": ["vite/client"],
+    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
     }
   },
   "include": [
-    "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
-    ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts",
-    "**/*.mts"
+    "src/main.tsx",
+    "src/App.tsx",
+    "src/pages/**/*.tsx",
+    "src/components/**/*.tsx",
+    "src/lib/**/*.ts",
+    "src/store/**/*.ts",
+    "src/types/**/*.ts",
+    "src/vite-env.d.ts",
+    "vite.config.ts"
   ],
   "exclude": ["node_modules"]
 }
