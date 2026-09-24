@@ -9,7 +9,7 @@ spring:
   datasource:
     druid:
       driver-class-name: com.mysql.cj.jdbc.Driver
-      url: jdbc:mysql://${DB_HOST:mysql}:${DB_PORT:3306}/${DB_NAME:sky_take_out}?serverTimezone=UTC&useUnicode=true&characterEncoding=utf-8&allowMultiQueries=true
+      url: jdbc:mysql://${DB_HOST:mysql}:${DB_PORT:3306}/${DB_NAME:sky_take_out}?serverTimezone=UTC&useUnicode=true&characterEncoding=utf-8&zeroDateTimeBehavior=convertToNull&useSSL=false&allowPublicKeyRetrieval=true&allowMultiQueries=true
       username: ${DB_USERNAME:sky_app}
       password: ${DB_PASSWORD}
   redis:
@@ -53,4 +53,3 @@ sky:
     webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
     success-url: ${STRIPE_SUCCESS_URL:}
     cancel-url: ${STRIPE_CANCEL_URL:}
-

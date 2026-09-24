@@ -22,6 +22,8 @@ export const submitOrder = (data: {
   tablewareStatus?: number;
   deliveryStatus?: number;
   estimatedDeliveryTime?: string;
+  packAmount: number;
+  amount: number;
 }) => {
   return request.post('/user/order/submit', data);
 };

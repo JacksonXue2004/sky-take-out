@@ -51,12 +51,7 @@ public class WebMvcConfiguration extends WebMvcConfigurationSupport {
                 .excludePathPatterns("/user/shop/status")
                 .excludePathPatterns("/user/category/list")
                 .excludePathPatterns("/user/dish/list")
-                .excludePathPatterns("/user/setmeal/list")
-                // 购物车接口允许未登录访问（返回空列表）
-                .excludePathPatterns("/user/shoppingCart/list")
-                .excludePathPatterns("/user/shoppingCart/add")
-                .excludePathPatterns("/user/shoppingCart/sub")
-                .excludePathPatterns("/user/shoppingCart/clean");
+                .excludePathPatterns("/user/setmeal/list");
     }
 
     /**
