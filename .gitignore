@@ -32,3 +32,5 @@ sky-server/src/main/resources/application.yml
 
 # Local database exports
 docker/mysql/init/*.sql
+!docker/mysql/init/001-demo-seed.sql
+!docker/mysql/init/002-demo-admin.sql

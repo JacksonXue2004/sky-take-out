@@ -29,6 +29,9 @@ public class ShopController {
         Integer status = null;
         try {
             status = (Integer) redisTemplate.opsForValue().get(KEY);
+            if (status == null) {
+                status = 1;
+            }
         } catch (Exception e) {
             log.warn("Redis连接失败，获取店铺状态失败：{}", e.getMessage());
             // Redis不可用时默认营业中
