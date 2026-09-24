@@ -22,9 +22,13 @@ dist/
 .env
 .env.*
 !.env.example
+!.env.docker.example
 sky-server/src/main/resources/application-dev.yml
 sky-server/src/main/resources/application.yml
 
 # Local extraction and migration working directories
 .asset-extract/
 .vue-src-extracted/
+
+# Local database exports
+docker/mysql/init/*.sql

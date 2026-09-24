@@ -1,0 +1,15 @@
+.git
+.github
+.idea
+.asset-extract
+.vue-src-extracted
+**/node_modules
+**/dist
+**/.next
+**/target
+**/*.tsbuildinfo
+**/.env*
+!**/.env.example
+sky-server/src/main/resources/application.yml
+sky-server/src/main/resources/application-dev.yml
+*.log

@@ -1,0 +1,98 @@
+name: sky-take-out
+
+services:
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_NAME:-sky_take_out}
+      MYSQL_USER: ${DB_USERNAME:-sky_app}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      TZ: UTC
+    ports:
+      - "${MYSQL_PORT:-3307}:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD}"]
+    ports:
+      - "${REDIS_PORT_ON_HOST:-6380}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME:-sky_take_out}
+      DB_USERNAME: ${DB_USERNAME:-sky_app}
+      DB_PASSWORD: ${DB_PASSWORD}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_DATABASE: 10
+      SKY_JWT_ADMIN_SECRET: ${SKY_JWT_ADMIN_SECRET}
+      SKY_JWT_USER_SECRET: ${SKY_JWT_USER_SECRET}
+      ALIOSS_ENDPOINT: ${ALIOSS_ENDPOINT:-}
+      ALIOSS_ACCESS_KEY_ID: ${ALIOSS_ACCESS_KEY_ID:-}
+      ALIOSS_ACCESS_KEY_SECRET: ${ALIOSS_ACCESS_KEY_SECRET:-}
+      ALIOSS_BUCKET_NAME: ${ALIOSS_BUCKET_NAME:-}
+      SHOP_ADDRESS: ${SHOP_ADDRESS:-Portfolio Demo Restaurant}
+      BAIDU_MAP_AK: ${BAIDU_MAP_AK:-}
+    volumes:
+      - ./docker/backend/application.yml:/app/config/application.yml:ro
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:8080/user/shop/status >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 15
+
+  admin-web:
+    build:
+      context: ./sky-frontend-admin
+    restart: unless-stopped
+    ports:
+      - "${ADMIN_PORT:-8081}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  customer-web:
+    build:
+      context: ./sky-frontend-user
+    restart: unless-stopped
+    ports:
+      - "${CUSTOMER_PORT:-3000}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  mysql-data:
+  redis-data:
+
