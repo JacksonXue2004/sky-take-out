@@ -98,24 +98,6 @@ The included demo database contains only non-sensitive English menu data. Prices
 
 The customer proxy preserves `/user/*` and `/notify/*`. The merchant proxy maps `/api/*` to the existing `/admin/*` endpoints and preserves WebSocket upgrades on `/ws/*`.
 
-## Useful commands
-
-```bash
-# View status
-docker compose ps
-
-# Follow backend logs
-docker compose logs -f backend
-
-# Rebuild after code changes
-docker compose up -d --build
-
-# Stop while keeping MySQL and Redis data
-docker compose down
-```
-
-Do not run `docker compose down -v` unless you intentionally want to permanently delete the container database and Redis volumes.
-
 ## Local development without Docker
 
 ### Backend
