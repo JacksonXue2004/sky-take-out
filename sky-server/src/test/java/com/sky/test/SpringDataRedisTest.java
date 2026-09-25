@@ -26,13 +26,10 @@ public class SpringDataRedisTest {
         ZSetOperations zSetOperations = redisTemplate.opsForZSet();
     }
 
-    /**
-     * 操作字符串类型的数据
-     */
     @Test
     public void testString(){
         // set get setex setnx
-        redisTemplate.opsForValue().set("name","小明");
+        redisTemplate.opsForValue().set("name","Operation");
         String city = (String) redisTemplate.opsForValue().get("name");
         System.out.println(city);
         redisTemplate.opsForValue().set("code","1234",3, TimeUnit.MINUTES);
@@ -40,9 +37,6 @@ public class SpringDataRedisTest {
         redisTemplate.opsForValue().setIfAbsent("lock","2");
     }
 
-    /**
-     * 操作哈希类型的数据
-     */
     @Test
     public void testHash(){
         //hset hget hdel hkeys hvals
@@ -63,9 +57,6 @@ public class SpringDataRedisTest {
         hashOperations.delete("100","age");
     }
 
-    /**
-     * 操作列表类型的数据
-     */
     @Test
     public void testList(){
         //lpush lrange rpop llen
@@ -83,9 +74,6 @@ public class SpringDataRedisTest {
         System.out.println(size);
     }
 
-    /**
-     * 操作集合类型的数据
-     */
     @Test
     public void testSet(){
         //sadd smembers scard sinter sunion srem
@@ -109,9 +97,6 @@ public class SpringDataRedisTest {
         setOperations.remove("set1","a","b");
     }
 
-    /**
-     * 操作有序集合类型的数据
-     */
     @Test
     public void testZset(){
         //zadd zrange zincrby zrem
@@ -129,9 +114,6 @@ public class SpringDataRedisTest {
         zSetOperations.remove("zset1","a","b");
     }
 
-    /**
-     * 通用命令操作
-     */
     @Test
     public void testCommon(){
         //keys exists type del

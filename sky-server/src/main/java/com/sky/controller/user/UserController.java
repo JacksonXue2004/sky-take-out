@@ -22,7 +22,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/user/user")
-@Api(tags = "C端用户相关接口")
+@Api(tags = "User API")
 @Slf4j
 public class UserController {
 
@@ -31,19 +31,14 @@ public class UserController {
     @Autowired
     private JwtProperties jwtProperties;
 
-    /**
-     * 邮箱登录
-     * @param userLoginDTO
-     * @return
-     */
     @PostMapping("/login")
-    @ApiOperation("用户登录")
+    @ApiOperation("Login")
     public Result<UserLoginVO> login(@RequestBody UserLoginDTO userLoginDTO){
-        log.info("用户登录：{}", userLoginDTO.getEmail());
+        log.info("Application event: {}", userLoginDTO.getEmail());
 
         User user = userService.login(userLoginDTO);
 
-        //生成jwt令牌
+
         Map<String, Object> claims = new HashMap<>();
         claims.put(JwtClaimsConstant.USER_ID, user.getId());
         String token = JwtUtil.createJWT(jwtProperties.getUserSecretKey(), jwtProperties.getUserTtl(), claims);
@@ -56,19 +51,14 @@ public class UserController {
         return Result.success(userLoginVO);
     }
 
-    /**
-     * 用户注册
-     * @param userLoginDTO
-     * @return
-     */
     @PostMapping("/register")
-    @ApiOperation("用户注册")
+    @ApiOperation("Register")
     public Result<UserLoginVO> register(@RequestBody UserLoginDTO userLoginDTO){
-        log.info("用户注册：{}", userLoginDTO.getEmail());
+        log.info("Application event: {}", userLoginDTO.getEmail());
 
         User user = userService.register(userLoginDTO);
 
-        //注册成功后自动登录，生成jwt令牌
+
         Map<String, Object> claims = new HashMap<>();
         claims.put(JwtClaimsConstant.USER_ID, user.getId());
         String token = JwtUtil.createJWT(jwtProperties.getUserSecretKey(), jwtProperties.getUserTtl(), claims);

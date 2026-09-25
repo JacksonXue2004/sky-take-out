@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/JacksonXue2004/sky-take-out/actions/workflows/ci.yml/badge.svg)](https://github.com/JacksonXue2004/sky-take-out/actions/workflows/ci.yml)
 
-A full-stack restaurant ordering platform with separate customer and merchant experiences. Customers can browse an English menu, manage a cart and delivery addresses, place an order, and complete a portfolio-safe simulated payment. Merchants receive real-time WebSocket notifications and can accept, dispatch, and complete orders.
+A full-stack restaurant ordering platform with separate customer and merchant experiences. Customers can browse an English menu, manage a cart and delivery addresses, place an order, and complete a development-mode simulated payment. Merchants receive real-time WebSocket notifications and can accept, dispatch, and complete orders.
 
 ## Tech stack
 
@@ -80,7 +80,7 @@ The included demo database contains only non-sensitive English menu data. Prices
 2. Add an item from the English menu to the cart.
 3. Open the cart and proceed to checkout.
 4. Add a US delivery address and place the order.
-5. The portfolio checkout simulates a successful payment; no payment card is required.
+5. The development checkout simulates a successful payment; no payment card is required.
 6. Open the merchant portal in another browser window and sign in.
 7. Open **Orders**. The new order appears under **Pending Acceptance** and also generates a WebSocket notification.
 8. Select **Accept**, then **Start Delivery**, and finally **Complete**.

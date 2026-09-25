@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Portfolio checkout support. This controller is unavailable outside the dev profile.
+ * Development checkout support. This controller is unavailable outside the dev profile.
  */
 @Profile("dev")
 @RestController

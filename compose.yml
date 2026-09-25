@@ -57,7 +57,7 @@ services:
       ALIOSS_ACCESS_KEY_ID: ${ALIOSS_ACCESS_KEY_ID:-}
       ALIOSS_ACCESS_KEY_SECRET: ${ALIOSS_ACCESS_KEY_SECRET:-}
       ALIOSS_BUCKET_NAME: ${ALIOSS_BUCKET_NAME:-}
-      SHOP_ADDRESS: ${SHOP_ADDRESS:-Portfolio Demo Restaurant}
+      SHOP_ADDRESS: ${SHOP_ADDRESS:-Demo Restaurant}
       BAIDU_MAP_AK: ${BAIDU_MAP_AK:-}
     volumes:
       - ./docker/backend/application.yml:/app/config/application.yml:ro

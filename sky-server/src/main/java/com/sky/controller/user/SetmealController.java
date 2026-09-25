@@ -19,30 +19,24 @@ import java.util.List;
 @RestController("userSetmealController")
 @RequestMapping("/user/setmeal")
 @Slf4j
-@Api(tags = "C端-套餐浏览接口")
+@Api(tags = "Setmeal API")
 public class SetmealController {
     @Autowired
     private SetmealService setmealService;
     @Autowired
     private RedisTemplate redisTemplate;
 
-    /**
-     * 条件查询
-     *
-     * @param categoryId 分类ID，为null或0时查询所有
-     * @return
-     */
     @GetMapping("/list")
-    @ApiOperation("根据分类id查询套餐")
+    @ApiOperation("List")
     public Result<List<Setmeal>> list(Long categoryId) {
         String key = categoryId != null && categoryId > 0 ? "setmealCache::" + categoryId : "setmealCache::all";
         List<Setmeal> list = null;
 
-        //尝试从redis中获取数据
+
         try {
             list = (List<Setmeal>) redisTemplate.opsForValue().get(key);
         } catch (Exception e) {
-            log.warn("Redis连接失败，跳过缓存查询：{}", e.getMessage());
+            log.warn("Application event: {}", e.getMessage());
         }
 
         if(list != null && list.size() > 0){
@@ -50,7 +44,7 @@ public class SetmealController {
         }
 
         Setmeal setmeal = new Setmeal();
-        // 只有categoryId有效时才设置分类条件
+
         if(categoryId != null && categoryId > 0){
             setmeal.setCategoryId(categoryId);
         }
@@ -58,24 +52,18 @@ public class SetmealController {
 
         list = setmealService.list(setmeal);
 
-        //尝试将数据写入redis
+
         try {
             redisTemplate.opsForValue().set(key, list);
         } catch (Exception e) {
-            log.warn("Redis连接失败，跳过缓存写入：{}", e.getMessage());
+            log.warn("Application event: {}", e.getMessage());
         }
 
         return Result.success(list);
     }
 
-    /**
-     * 根据套餐id查询包含的菜品列表
-     *
-     * @param id
-     * @return
-     */
     @GetMapping("/dish/{id}")
-    @ApiOperation("根据套餐id查询包含的菜品列表")
+    @ApiOperation("Dish List")
     public Result<List<DishItemVO>> dishList(@PathVariable("id") Long id) {
         List<DishItemVO> list = setmealService.getDishItemById(id);
         return Result.success(list);

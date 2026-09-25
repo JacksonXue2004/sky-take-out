@@ -44,7 +44,7 @@ sky:
     access-key-secret: ${ALIOSS_ACCESS_KEY_SECRET:}
     bucket-name: ${ALIOSS_BUCKET_NAME:}
   shop:
-    address: ${SHOP_ADDRESS:Portfolio Demo Restaurant}
+    address: ${SHOP_ADDRESS:Demo Restaurant}
   baidu:
     ak: ${BAIDU_MAP_AK:}
   stripe:

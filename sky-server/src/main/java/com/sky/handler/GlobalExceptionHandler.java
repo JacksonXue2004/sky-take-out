@@ -9,29 +9,16 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.sql.SQLIntegrityConstraintViolationException;
 
-/**
- * 全局异常处理器，处理项目中抛出的业务异常
- */
 @RestControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler {
 
-    /**
-     * 捕获业务异常
-     * @param ex
-     * @return
-     */
     @ExceptionHandler
     public Result exceptionHandler(BaseException ex){
-        log.error("异常信息：{}", ex.getMessage());
+        log.error("Application event: {}", ex.getMessage());
         return Result.error(ex.getMessage());
     }
 
-    /**
-     * 处理SQL异常
-     * @param ex
-     * @return
-     */
     @ExceptionHandler
     public Result exceptionHandler(SQLIntegrityConstraintViolationException ex){
         //Duplicate entry 'zhangsan' for key 'employee.idx_username'
@@ -46,21 +33,16 @@ public class GlobalExceptionHandler {
         }
     }
 
-    /**
-     * 处理Redis连接异常
-     * @param ex
-     * @return
-     */
     @ExceptionHandler
     public Result exceptionHandler(RuntimeException ex){
         String message = ex.getMessage();
-        if(message != null && (message.contains("RedisConnectionFailureException") 
+        if(message != null && (message.contains("RedisConnectionFailureException")
                 || message.contains("JedisConnectionException")
                 || message.contains("Unable to connect to Redis"))){
-            log.warn("Redis连接异常：{}", message);
-            return Result.error("缓存服务暂时不可用，请稍后重试");
+            log.warn("Application event: {}", message);
+            return Result.error("The cache service is temporarily unavailable. Please try again later.");
         }
-        log.error("系统异常：{}", ex.getMessage(), ex);
+        log.error("Application event: {}", ex.getMessage(), ex);
         return Result.error(MessageConstant.UNKNOWN_ERROR);
     }
 }

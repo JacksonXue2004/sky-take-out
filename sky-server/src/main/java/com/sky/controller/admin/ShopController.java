@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController("adminShopController")
 @RequestMapping("/admin/shop")
-@Api(tags = "店铺相关接口")
+@Api(tags = "Shop API")
 @Slf4j
 public class ShopController {
 
@@ -19,29 +19,20 @@ public class ShopController {
     @Autowired
     private RedisTemplate redisTemplate;
 
-    /**
-     * 设置店铺的营业状态
-     * @param status
-     * @return
-     */
     @PutMapping("/{status}")
-    @ApiOperation("设置店铺的营业状态")
+    @ApiOperation("Set Status")
     public Result setStatus(@PathVariable Integer status){
-        log.info("设置店铺的营业状态为：{}",status == 1 ? "营业中" : "打烊中");
+        log.info("Application event: {}",status == 1 ? "Operation" : "Operation");
         try {
             redisTemplate.opsForValue().set(KEY,status);
         } catch (Exception e) {
-            log.warn("Redis连接失败，设置店铺状态失败：{}", e.getMessage());
+            log.warn("Application event: {}", e.getMessage());
         }
         return Result.success();
     }
 
-    /**
-     * 获取店铺的营业状态
-     * @return
-     */
     @GetMapping("/status")
-    @ApiOperation("获取店铺的营业状态")
+    @ApiOperation("Get Status")
     public Result<Integer> getStatus(){
         Integer status = null;
         try {
@@ -50,10 +41,10 @@ public class ShopController {
                 status = 1;
             }
         } catch (Exception e) {
-            log.warn("Redis连接失败，获取店铺状态失败：{}", e.getMessage());
+            log.warn("Application event: {}", e.getMessage());
             status = 1;
         }
-        log.info("获取到店铺的营业状态为：{}",status == 1 ? "营业中" : "打烊中");
+        log.info("Application event: {}",status == 1 ? "Operation" : "Operation");
         return Result.success(status);
     }
 }

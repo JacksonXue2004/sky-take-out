@@ -1,13 +1,11 @@
 import request from '../request';
 
-// 购物车相关 API
 
-// 查询购物车
 export const getCartList = () => {
   return request.get('/user/shoppingCart/list');
 };
 
-// 添加到购物车
+
 export const addToCart = (data: {
   dishId?: number;
   setmealId?: number;
@@ -17,7 +15,7 @@ export const addToCart = (data: {
   return request.post('/user/shoppingCart/add', data);
 };
 
-// 减少购物车商品数量
+
 export const reduceCartItem = (data: {
   dishId?: number;
   setmealId?: number;
@@ -26,7 +24,7 @@ export const reduceCartItem = (data: {
   return request.post('/user/shoppingCart/sub', data);
 };
 
-// 清空购物车
+
 export const clearCart = () => {
   return request.delete('/user/shoppingCart/clean');
 };

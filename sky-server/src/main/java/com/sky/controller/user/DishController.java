@@ -18,31 +18,25 @@ import java.util.List;
 @RestController("userDishController")
 @RequestMapping("/user/dish")
 @Slf4j
-@Api(tags = "C端-菜品浏览接口")
+@Api(tags = "Dish API")
 public class DishController {
     @Autowired
     private DishService dishService;
     @Autowired
     private RedisTemplate redisTemplate;
 
-    /**
-     * 根据分类id查询菜品
-     *
-     * @param categoryId 分类ID，为null或0时查询所有
-     * @return
-     */
     @GetMapping("/list")
-    @ApiOperation("根据分类id查询菜品")
+    @ApiOperation("List")
     public Result<List<DishVO>> list(Long categoryId) {
 
         List<DishVO> list = null;
         String key = categoryId != null && categoryId > 0 ? "dish_" + categoryId : "dish_all";
 
-        //尝试从redis中获取数据，Redis不可用时回退到数据库
+
         try {
             list = (List<DishVO>) redisTemplate.opsForValue().get(key);
         } catch (Exception e) {
-            log.warn("Redis连接失败，跳过缓存查询：{}", e.getMessage());
+            log.warn("Application event: {}", e.getMessage());
         }
 
         if(list != null && list.size() > 0){
@@ -50,20 +44,20 @@ public class DishController {
         }
 
         Dish dish = new Dish();
-        // 只有categoryId有效时才设置分类条件
+
         if(categoryId != null && categoryId > 0){
             dish.setCategoryId(categoryId);
         }
         dish.setStatus(StatusConstant.ENABLE);
 
-        //查询数据库
+
         list = dishService.listWithFlavor(dish);
 
-        //尝试将数据写入redis，Redis不可用时忽略异常
+
         try {
             redisTemplate.opsForValue().set(key, list);
         } catch (Exception e) {
-            log.warn("Redis连接失败，跳过缓存写入：{}", e.getMessage());
+            log.warn("Application event: {}", e.getMessage());
         }
 
         return Result.success(list);

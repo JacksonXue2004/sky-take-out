@@ -1,4 +1,4 @@
-// TypeScript 类型定义
+
 
 export interface Result<T = any> {
   code: number;

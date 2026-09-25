@@ -1,11 +1,11 @@
 import request from '@/utils/request'
 
 // Order Management
-// total件分页Search
+
 export const getOrderDetailPage = (params: any) =>
   request({ url: '/order/conditionSearch', method: 'get', params })
 
-// View详情
+
 export const queryOrderDetailById = (params: any) =>
   request({ url: `/order/details/${params.orderId}`, method: 'get' })
 
@@ -29,6 +29,6 @@ export const orderAccept = (params: any) =>
 export const orderReject = (params: any) =>
   request({ url: '/order/rejection', method: 'put', data: { ...params } })
 
-// 各StatusQuantity统计
+
 export const getOrderListBy = (_params: any) =>
   request({ url: '/order/statistics', method: 'get' })

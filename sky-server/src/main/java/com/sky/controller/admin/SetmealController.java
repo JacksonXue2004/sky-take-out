@@ -16,12 +16,9 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Set;
 
-/**
- * 套餐管理
- */
 @RestController
 @RequestMapping("/admin/setmeal")
-@Api(tags = "套餐相关接口")
+@Api(tags = "Setmeal API")
 @Slf4j
 public class SetmealController {
 
@@ -30,97 +27,56 @@ public class SetmealController {
     @Autowired
     private RedisTemplate redisTemplate;
 
-    /**
-     * 新增套餐
-     *
-     * @param setmealDTO
-     * @return
-     */
     @PostMapping
-    @ApiOperation("新增套餐")
+    @ApiOperation("Save")
     public Result save(@RequestBody SetmealDTO setmealDTO) {
         setmealService.saveWithDish(setmealDTO);
-        //清理对应分类的缓存
+
         cleanCache("setmealCache::" + setmealDTO.getCategoryId());
         return Result.success();
     }
 
-    /**
-     * 分页查询
-     *
-     * @param setmealPageQueryDTO
-     * @return
-     */
     @GetMapping("/page")
-    @ApiOperation("分页查询")
+    @ApiOperation("Page")
     public Result<PageResult> page(SetmealPageQueryDTO setmealPageQueryDTO) {
         PageResult pageResult = setmealService.pageQuery(setmealPageQueryDTO);
         return Result.success(pageResult);
     }
 
-    /**
-     * 批量删除套餐
-     *
-     * @param ids
-     * @return
-     */
     @DeleteMapping
-    @ApiOperation("批量删除套餐")
+    @ApiOperation("Delete")
     public Result delete(@RequestParam List<Long> ids) {
         setmealService.deleteBatch(ids);
-        //清理所有套餐缓存
+
         cleanCache("setmealCache::*");
         return Result.success();
     }
 
-    /**
-     * 根据id查询套餐，用于修改页面回显数据
-     *
-     * @param id
-     * @return
-     */
     @GetMapping("/{id}")
-    @ApiOperation("根据id查询套餐")
+    @ApiOperation("Get By Id")
     public Result<SetmealVO> getById(@PathVariable Long id) {
         SetmealVO setmealVO = setmealService.getByIdWithDish(id);
         return Result.success(setmealVO);
     }
 
-    /**
-     * 修改套餐
-     *
-     * @param setmealDTO
-     * @return
-     */
     @PutMapping
-    @ApiOperation("修改套餐")
+    @ApiOperation("Update")
     public Result update(@RequestBody SetmealDTO setmealDTO) {
         setmealService.update(setmealDTO);
-        //清理所有套餐缓存
+
         cleanCache("setmealCache::*");
         return Result.success();
     }
 
-    /**
-     * 套餐起售停售
-     *
-     * @param status
-     * @param id
-     * @return
-     */
     @PostMapping("/status/{status}")
-    @ApiOperation("套餐起售停售")
+    @ApiOperation("Start Or Stop")
     public Result startOrStop(@PathVariable Integer status, Long id) {
         setmealService.startOrStop(status, id);
-        //清理所有套餐缓存
+
         cleanCache("setmealCache::*");
         return Result.success();
     }
 
-    /**
-     * 清理缓存数据
-     * @param pattern
-     */
     private void cleanCache(String pattern){
         try {
             Set keys = redisTemplate.keys(pattern);
@@ -128,7 +84,7 @@ public class SetmealController {
                 redisTemplate.delete(keys);
             }
         } catch (Exception e) {
-            log.warn("Redis连接失败，清理缓存失败：{}", e.getMessage());
+            log.warn("Application event: {}", e.getMessage());
         }
     }
 }
