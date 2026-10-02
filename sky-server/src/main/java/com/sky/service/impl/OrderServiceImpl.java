@@ -214,22 +214,32 @@ public class OrderServiceImpl implements OrderService {
         return vo;
     }
 
+    /**
+     * Payment notifications can arrive more than once (provider retries, a double click on the
+     * simulated payment). Only the first one moves the order out of PENDING_PAYMENT and alerts the
+     * merchant; repeated calls change nothing and send no WebSocket message.
+     */
     public void paySuccess(String outTradeNo) {
-
-        Long userId = BaseContext.getCurrentId();
-
-
-        Orders ordersDB = orderMapper.getByNumberAndUserId(outTradeNo, userId);
-
+        // Looked up by order number only: the Stripe webhook has no signed-in user.
+        Orders ordersDB = orderMapper.getByNumber(outTradeNo);
+        if (ordersDB == null) {
+            throw new OrderBusinessException(MessageConstant.ORDER_NOT_FOUND);
+        }
+        if (!OrderTransition.PAY.canStartFrom(ordersDB.getStatus())) {
+            log.info("Ignoring payment notification for order {} in status {}", outTradeNo, ordersDB.getStatus());
+            return;
+        }
 
         Orders orders = Orders.builder()
                 .id(ordersDB.getId())
-                .status(Orders.TO_BE_CONFIRMED)
+                .status(OrderTransition.PAY.getTargetStatus())
                 .payStatus(Orders.PAID)
                 .checkoutTime(LocalDateTime.now())
                 .build();
-
-        orderMapper.update(orders);
+        if (orderMapper.updateStatus(orders, ordersDB.getStatus()) == 0) {
+            log.info("Order {} was already updated by a concurrent payment notification", outTradeNo);
+            return;
+        }
 
 
         Map map = new HashMap();
