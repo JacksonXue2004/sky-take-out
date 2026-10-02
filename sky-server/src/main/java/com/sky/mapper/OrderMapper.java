@@ -23,6 +23,12 @@ public interface OrderMapper {
 
     void update(Orders orders);
 
+    /**
+     * Updates the order only while it is still in fromStatus.
+     * Returns the number of updated rows; 0 means another request changed the status first.
+     */
+    int updateStatus(Orders orders, Integer fromStatus);
+
     Page<Orders> pageQuery(OrdersPageQueryDTO ordersPageQueryDTO);
 
     @Select("select * from orders where id=#{id}")
