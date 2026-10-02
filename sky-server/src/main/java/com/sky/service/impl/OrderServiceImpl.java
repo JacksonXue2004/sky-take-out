@@ -408,99 +408,90 @@ public class OrderServiceImpl implements OrderService {
     }
 
     public void confirm(OrdersConfirmDTO ordersConfirmDTO) {
-        Orders orders = Orders.builder()
-                .id(ordersConfirmDTO.getId())
-                .status(Orders.CONFIRMED)
-                .build();
-
-        orderMapper.update(orders);
+        Orders ordersDB = getOrderOrThrow(ordersConfirmDTO.getId());
+        changeStatus(ordersDB, OrderTransition.CONFIRM, new Orders());
     }
 
+    @Transactional
     public void rejection(OrdersRejectionDTO ordersRejectionDTO) throws Exception {
-
-        Orders ordersDB = orderMapper.getById(ordersRejectionDTO.getId());
-
-
-        if (ordersDB == null || !ordersDB.getStatus().equals(Orders.TO_BE_CONFIRMED)) {
-            throw new OrderBusinessException(MessageConstant.ORDER_STATUS_ERROR);
-        }
-
-
-        Integer payStatus = ordersDB.getPayStatus();
-        if (payStatus == Orders.PAID) {
-
-            JSONObject refund = stripePayUtil.refund(
-                    ordersDB.getNumber(),
-                    ordersDB.getAmount());
-            log.info("Application event: {}", refund);
-        }
-
+        Orders ordersDB = getOrderOrThrow(ordersRejectionDTO.getId());
+        boolean paid = Orders.PAID.equals(ordersDB.getPayStatus());
 
         Orders orders = new Orders();
-        orders.setId(ordersDB.getId());
-        orders.setStatus(Orders.CANCELLED);
         orders.setRejectionReason(ordersRejectionDTO.getRejectionReason());
         orders.setCancelTime(LocalDateTime.now());
+        if (paid) {
+            orders.setPayStatus(Orders.REFUND);
+        }
+        changeStatus(ordersDB, OrderTransition.REJECT, orders);
 
-        orderMapper.update(orders);
+        if (paid) {
+            refund(ordersDB);
+        }
     }
 
+    @Transactional
     public void cancel(OrdersCancelDTO ordersCancelDTO) throws Exception {
-
-        Orders ordersDB = orderMapper.getById(ordersCancelDTO.getId());
-
-
-        Integer payStatus = ordersDB.getPayStatus();
-        if (payStatus == Orders.PAID) {
-
-            JSONObject refund = stripePayUtil.refund(
-                    ordersDB.getNumber(),
-                    ordersDB.getAmount());
-            log.info("Application event: {}", refund);
-        }
-
+        Orders ordersDB = getOrderOrThrow(ordersCancelDTO.getId());
+        boolean paid = Orders.PAID.equals(ordersDB.getPayStatus());
 
         Orders orders = new Orders();
-        orders.setId(ordersCancelDTO.getId());
-        orders.setStatus(Orders.CANCELLED);
         orders.setCancelReason(ordersCancelDTO.getCancelReason());
         orders.setCancelTime(LocalDateTime.now());
-        orderMapper.update(orders);
+        if (paid) {
+            orders.setPayStatus(Orders.REFUND);
+        }
+        changeStatus(ordersDB, OrderTransition.MERCHANT_CANCEL, orders);
+
+        if (paid) {
+            refund(ordersDB);
+        }
     }
 
     public void delivery(Long id) {
-
-        Orders ordersDB = orderMapper.getById(id);
-
-
-        if (ordersDB == null || !ordersDB.getStatus().equals(Orders.CONFIRMED)) {
-            throw new OrderBusinessException(MessageConstant.ORDER_STATUS_ERROR);
-        }
-
-        Orders orders = new Orders();
-        orders.setId(ordersDB.getId());
-
-        orders.setStatus(Orders.DELIVERY_IN_PROGRESS);
-
-        orderMapper.update(orders);
+        Orders ordersDB = getOrderOrThrow(id);
+        changeStatus(ordersDB, OrderTransition.DELIVER, new Orders());
     }
 
     public void complete(Long id) {
-
-        Orders ordersDB = orderMapper.getById(id);
-
-
-        if (ordersDB == null || !ordersDB.getStatus().equals(Orders.DELIVERY_IN_PROGRESS)) {
-            throw new OrderBusinessException(MessageConstant.ORDER_STATUS_ERROR);
-        }
+        Orders ordersDB = getOrderOrThrow(id);
 
         Orders orders = new Orders();
-        orders.setId(ordersDB.getId());
-
-        orders.setStatus(Orders.COMPLETED);
         orders.setDeliveryTime(LocalDateTime.now());
+        changeStatus(ordersDB, OrderTransition.COMPLETE, orders);
+    }
 
-        orderMapper.update(orders);
+    private Orders getOrderOrThrow(Long id) {
+        Orders ordersDB = orderMapper.getById(id);
+        if (ordersDB == null) {
+            throw new OrderBusinessException(MessageConstant.ORDER_NOT_FOUND);
+        }
+        return ordersDB;
+    }
+
+    /**
+     * Moves the order to the transition's target status with
+     * UPDATE ... WHERE id = ? AND status = <status we just read>.
+     * If another request changed the order in between, no row matches and the change is refused.
+     */
+    private void changeStatus(Orders ordersDB, OrderTransition transition, Orders changes) {
+        if (!transition.canStartFrom(ordersDB.getStatus())) {
+            throw new OrderBusinessException(MessageConstant.ORDER_STATUS_ERROR);
+        }
+        changes.setId(ordersDB.getId());
+        changes.setStatus(transition.getTargetStatus());
+        if (orderMapper.updateStatus(changes, ordersDB.getStatus()) == 0) {
+            throw new OrderBusinessException(MessageConstant.ORDER_STATUS_CHANGED);
+        }
+    }
+
+    /**
+     * Called only after this request has won the status change,
+     * so a retried or concurrent cancellation cannot refund the same order twice.
+     */
+    private void refund(Orders ordersDB) {
+        JSONObject refund = stripePayUtil.refund(ordersDB.getNumber(), ordersDB.getAmount());
+        log.info("Refund requested for order {}: {}", ordersDB.getNumber(), refund);
     }
 
     public void reminder(Long id) {

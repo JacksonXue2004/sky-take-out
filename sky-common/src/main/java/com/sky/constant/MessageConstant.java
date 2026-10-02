@@ -20,6 +20,7 @@ public class MessageConstant {
     public static final String SETMEAL_ON_SALE = "A combo that is currently on sale cannot be deleted";
     public static final String DISH_BE_RELATED_BY_SETMEAL = "This item is used by a combo and cannot be deleted";
     public static final String ORDER_STATUS_ERROR = "Invalid order status";
+    public static final String ORDER_STATUS_CHANGED = "The order was updated by another request. Refresh and try again";
     public static final String ORDER_NOT_FOUND = "Order not found";
 
 }
