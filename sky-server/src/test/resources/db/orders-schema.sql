@@ -1,0 +1,28 @@
+-- Same definition as the orders table in docker/mysql/init/001-demo-seed.sql
+CREATE TABLE `orders` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `number` varchar(50) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin DEFAULT NULL,
+  `status` int NOT NULL DEFAULT '1',
+  `user_id` bigint NOT NULL,
+  `address_book_id` bigint NOT NULL,
+  `order_time` datetime NOT NULL,
+  `checkout_time` datetime DEFAULT NULL,
+  `pay_method` int NOT NULL DEFAULT '1',
+  `pay_status` tinyint NOT NULL DEFAULT '0',
+  `amount` decimal(10,2) NOT NULL,
+  `remark` varchar(100) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin DEFAULT NULL,
+  `phone` varchar(11) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin DEFAULT NULL,
+  `address` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin DEFAULT NULL,
+  `user_name` varchar(32) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin DEFAULT NULL,
+  `consignee` varchar(32) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin DEFAULT NULL,
+  `cancel_reason` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin DEFAULT NULL,
+  `rejection_reason` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin DEFAULT NULL,
+  `cancel_time` datetime DEFAULT NULL,
+  `estimated_delivery_time` datetime DEFAULT NULL,
+  `delivery_status` tinyint(1) NOT NULL DEFAULT '1',
+  `delivery_time` datetime DEFAULT NULL,
+  `pack_amount` int DEFAULT NULL,
+  `tableware_number` int DEFAULT NULL,
+  `tableware_status` tinyint(1) NOT NULL DEFAULT '1',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin;

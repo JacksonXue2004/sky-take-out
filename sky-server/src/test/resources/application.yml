@@ -1,0 +1,44 @@
+# Configuration for tests only. Every value here is a placeholder, not a credential.
+# The integration test replaces the datasource URL, user and password with the ones of its MySQL container.
+spring:
+  main:
+    allow-circular-references: true
+  datasource:
+    druid:
+      driver-class-name: com.mysql.cj.jdbc.Driver
+      url: jdbc:mysql://localhost:3306/sky_take_out
+      username: test
+      password: test
+  redis:
+    host: localhost
+    port: 6379
+
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: com.sky.entity
+  configuration:
+    map-underscore-to-camel-case: true
+
+sky:
+  jwt:
+    admin-secret-key: test-admin-key
+    admin-ttl: 7200000
+    admin-token-name: token
+    user-secret-key: test-user-key
+    user-ttl: 7200000
+    user-token-name: authentication
+  alioss:
+    endpoint: test
+    access-key-id: test
+    access-key-secret: test
+    bucket-name: test
+  shop:
+    address: Test Restaurant
+  baidu:
+    ak: ""
+  stripe:
+    secret-key: ""
+    publishable-key: ""
+    webhook-secret: ""
+    success-url: ""
+    cancel-url: ""
