@@ -2,7 +2,6 @@ name: CI
 
 on:
   push:
-    branches: [main, refactor/customer-react-vite]
   pull_request:
     branches: [main]
 
@@ -15,7 +14,7 @@ permissions:
 
 jobs:
   backend:
-    name: Backend build
+    name: Backend tests and build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -24,7 +23,10 @@ jobs:
           distribution: temurin
           java-version: "8"
           cache: maven
-      - name: Compile and package
+      # Unit tests plus the Testcontainers MySQL test (the runner has Docker).
+      - name: Run tests
+        run: mvn -B -ntp -pl sky-server -am test
+      - name: Package
         run: mvn -B -ntp -pl sky-server -am -DskipTests package
       - uses: actions/upload-artifact@v4
         with:
