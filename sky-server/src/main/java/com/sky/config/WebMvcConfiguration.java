@@ -61,13 +61,13 @@ public class WebMvcConfiguration extends WebMvcConfigurationSupport {
     public Docket docket1(){
         log.info("Application event: {}");
         ApiInfo apiInfo = new ApiInfoBuilder()
-                .title("Operation")
+                .title("Sky Take-Out API")
                 .version("2.0")
-                .description("Operation")
+                .description("Sky Take-Out API documentation")
                 .build();
 
         Docket docket = new Docket(DocumentationType.SWAGGER_2)
-                .groupName("Operation")
+                .groupName("Admin API")
                 .apiInfo(apiInfo)
                 .select()
 
@@ -82,13 +82,13 @@ public class WebMvcConfiguration extends WebMvcConfigurationSupport {
     public Docket docket2(){
         log.info("Application event: {}");
         ApiInfo apiInfo = new ApiInfoBuilder()
-                .title("Operation")
+                .title("Sky Take-Out API")
                 .version("2.0")
-                .description("Operation")
+                .description("Sky Take-Out API documentation")
                 .build();
 
         Docket docket = new Docket(DocumentationType.SWAGGER_2)
-                .groupName("Operation")
+                .groupName("User API")
                 .apiInfo(apiInfo)
                 .select()
 
