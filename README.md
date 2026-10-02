@@ -30,6 +30,13 @@ Customer places an order
 → merchant accepts, dispatches, and completes the order
 ```
 
+## Engineering highlights
+
+- **Order state machine.** Every allowed status change (pay, confirm, reject, deliver, complete, customer and merchant cancel, payment timeout) is declared once in [`OrderTransition`](sky-pojo/src/main/java/com/sky/entity/OrderTransition.java). Changes are applied with a conditional update, `UPDATE orders SET status = ? WHERE id = ? AND status = ?`. When two requests act on the same order, only one update matches; the other gets an explicit error instead of silently overwriting the first.
+- **Idempotent payment handling.** A payment notification only moves an order from pending payment to waiting for the merchant. Repeated or concurrent notifications change nothing and do not send a second merchant alert. Stripe webhooks must carry a valid HMAC-SHA256 signature, and events older than five minutes are rejected.
+- **No double refunds.** A paid order is refunded only after its cancellation has won the status update, inside the same transaction.
+- **Tests on every push.** 54 JUnit 5 and Mockito unit tests cover order placement, each of the 6 order actions against each of the 6 statuses, and payment callbacks. A Testcontainers integration test races confirm against reject on the same order in MySQL 8 and checks that exactly one wins.
+
 ## Quick start with Docker
 
 ### Requirements
@@ -104,6 +111,14 @@ The customer proxy preserves `/user/*` and `/notify/*`. The merchant proxy maps 
 
 Start local MySQL on port 3306 and Redis on port 6379. Configure the ignored `sky-server/src/main/resources/application-dev.yml`, then run `com.sky.SkyApplication` from IntelliJ IDEA or package the Maven project.
 
+### Backend tests
+
+```bash
+mvn -pl sky-server -am test
+```
+
+The MySQL integration test uses Testcontainers and needs a running Docker engine (on Windows, start Docker Desktop first). Without Docker it is skipped and the unit tests still run.
+
 ### Merchant React app
 
 ```bash
@@ -122,9 +137,9 @@ npm run dev
 
 ## CI/CD
 
-Every pull request and development push runs:
+Every push and every pull request to `main` runs:
 
-- Maven backend packaging
+- Backend unit tests, the MySQL integration test, and Maven packaging
 - Merchant React production build
 - Customer React production build
 - Linux validation builds for all three Docker images
