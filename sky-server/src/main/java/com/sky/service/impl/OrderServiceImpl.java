@@ -287,42 +287,22 @@ public class OrderServiceImpl implements OrderService {
         return orderVO;
     }
 
+    @Transactional
     public void userCancelById(Long id) throws Exception {
-
-        Orders ordersDB = orderMapper.getById(id);
-
-
-        if (ordersDB == null) {
-            throw new OrderBusinessException(MessageConstant.ORDER_NOT_FOUND);
-        }
-
-
-        if (ordersDB.getStatus() > 2) {
-            throw new OrderBusinessException(MessageConstant.ORDER_STATUS_ERROR);
-        }
+        Orders ordersDB = getOrderOrThrow(id);
+        boolean paid = Orders.PAID.equals(ordersDB.getPayStatus());
 
         Orders orders = new Orders();
-        orders.setId(ordersDB.getId());
-
-
-        if (ordersDB.getStatus().equals(Orders.TO_BE_CONFIRMED)) {
-
-            if (ordersDB.getPayStatus() == Orders.PAID) {
-                stripePayUtil.refund(
-                        ordersDB.getNumber(),
-                        ordersDB.getAmount()
-                );
-            }
-
-
-            orders.setPayStatus(Orders.REFUND);
-        }
-
-
-        orders.setStatus(Orders.CANCELLED);
         orders.setCancelReason("Canceled by customer");
         orders.setCancelTime(LocalDateTime.now());
-        orderMapper.update(orders);
+        if (paid) {
+            orders.setPayStatus(Orders.REFUND);
+        }
+        changeStatus(ordersDB, OrderTransition.USER_CANCEL, orders);
+
+        if (paid) {
+            refund(ordersDB);
+        }
     }
 
     public void repetition(Long id) {
