@@ -290,6 +290,10 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     public void userCancelById(Long id) throws Exception {
         Orders ordersDB = getOrderOrThrow(id);
+        // Another customer's order is reported as missing so its existence is not revealed.
+        if (!ordersDB.getUserId().equals(BaseContext.getCurrentId())) {
+            throw new OrderBusinessException(MessageConstant.ORDER_NOT_FOUND);
+        }
         boolean paid = Orders.PAID.equals(ordersDB.getPayStatus());
 
         Orders orders = new Orders();
