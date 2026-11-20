@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import Navbar from '@/components/Navbar';
 import { getAddressList } from '@/lib/api/address';
 import { simulatePayment, submitOrder } from '@/lib/api/order';
+import { newIdempotencyKey } from '@/lib/idempotency';
 import { useAuthStore } from '@/store/auth';
 import { useCartStore } from '@/store/cart';
 import { AddressBook } from '@/types';
@@ -16,6 +17,8 @@ export default function CheckoutPage() {
   const [addressId, setAddressId] = useState<number | null>(null);
   const [remark, setRemark] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  // Kept across retries on this page, so a second click cannot place a second order.
+  const idempotencyKey = useRef(newIdempotencyKey());
   useEffect(() => {
     if (!authenticated) { navigate('/login'); return; }
     void fetchCart();
@@ -29,7 +32,7 @@ export default function CheckoutPage() {
     if (!items.length) return toast.error('Your cart is empty');
     setSubmitting(true);
     try {
-      const submitted = await submitOrder({ addressBookId: addressId, payMethod: 1, remark, tablewareStatus: 1, tablewareNumber: 1, deliveryStatus: 1 });
+      const submitted = await submitOrder({ addressBookId: addressId, payMethod: 1, remark, tablewareStatus: 1, tablewareNumber: 1, deliveryStatus: 1 }, idempotencyKey.current);
       await simulatePayment(submitted.data.orderNumber);
       clearLocalCart();
       toast.success('Order placed and payment simulated');

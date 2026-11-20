@@ -34,6 +34,9 @@ import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DuplicateKeyException;
+import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -53,7 +56,9 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -66,6 +71,7 @@ class OrderServiceImplTest {
     private static final Long USER_ID = 7L;
     private static final Long ORDER_ID = 100L;
     private static final String ORDER_NUMBER = "1727850000000";
+    private static final String IDEMPOTENCY_KEY = "3f6c2a9e-1b7d-4c55-9a0e-8d2f4b6c1e90";
     private static final BigDecimal AMOUNT = new BigDecimal("25.00");
     private static final Integer[] ALL_STATUSES = {
             Orders.PENDING_PAYMENT, Orders.TO_BE_CONFIRMED, Orders.CONFIRMED,
@@ -83,6 +89,8 @@ class OrderServiceImplTest {
     private StripePayUtil stripePayUtil;
     @Mock
     private WebSocketServer webSocketServer;
+    @Mock
+    private TransactionTemplate transactionTemplate;
 
     @InjectMocks
     private OrderServiceImpl orderService;
@@ -90,6 +98,14 @@ class OrderServiceImplTest {
     @BeforeEach
     void signIn() {
         BaseContext.setCurrentId(USER_ID);
+    }
+
+    @BeforeEach
+    void runTransactionsInline() {
+        lenient().when(transactionTemplate.execute(any())).thenAnswer(invocation -> {
+            TransactionCallback<?> callback = invocation.getArgument(0);
+            return callback.doInTransaction(null);
+        });
     }
 
     @AfterEach
@@ -116,7 +132,7 @@ class OrderServiceImplTest {
         dto.setTablewareNumber(1);
         dto.setTablewareStatus(1);
         dto.setDeliveryStatus(1);
-        OrderSubmitVO result = orderService.submitOrder(dto);
+        OrderSubmitVO result = orderService.submitOrder(dto, null);
 
         ArgumentCaptor<Orders> saved = ArgumentCaptor.forClass(Orders.class);
         verify(orderMapper).insert(saved.capture());
@@ -139,7 +155,7 @@ class OrderServiceImplTest {
 
         OrdersSubmitDTO dto = new OrdersSubmitDTO();
         dto.setAddressBookId(1L);
-        OrderSubmitVO result = orderService.submitOrder(dto);
+        OrderSubmitVO result = orderService.submitOrder(dto, null);
 
         ArgumentCaptor<Orders> saved = ArgumentCaptor.forClass(Orders.class);
         verify(orderMapper).insert(saved.capture());
@@ -156,8 +172,8 @@ class OrderServiceImplTest {
         OrdersSubmitDTO dto = new OrdersSubmitDTO();
         dto.setAddressBookId(1L);
 
-        orderService.submitOrder(dto);
-        orderService.submitOrder(dto);
+        orderService.submitOrder(dto, null);
+        orderService.submitOrder(dto, null);
 
         ArgumentCaptor<Orders> saved = ArgumentCaptor.forClass(Orders.class);
         verify(orderMapper, times(2)).insert(saved.capture());
@@ -165,6 +181,60 @@ class OrderServiceImplTest {
         String second = saved.getAllValues().get(1).getNumber();
         assertTrue(first.matches("[0-9a-f]{32}"), first);
         assertNotEquals(first, second);
+    }
+
+    // ---------- idempotent order placement ----------
+
+    @Test
+    void aKeyThatWasAlreadyUsedReturnsTheFirstOrderWithoutPlacingAnother() {
+        Orders first = order(Orders.PENDING_PAYMENT);
+        when(orderMapper.getByUserIdAndIdempotencyKey(USER_ID, IDEMPOTENCY_KEY)).thenReturn(first);
+
+        OrderSubmitVO result = orderService.submitOrder(new OrdersSubmitDTO(), IDEMPOTENCY_KEY);
+
+        assertEquals(ORDER_ID, result.getId());
+        assertEquals(ORDER_NUMBER, result.getOrderNumber());
+        verify(orderMapper, never()).insert(any());
+        verifyNoInteractions(shoppingCartMapper, addressBookMapper);
+    }
+
+    @Test
+    void aNewKeyIsStoredWithTheOrder() {
+        when(addressBookMapper.getById(1L)).thenReturn(AddressBook.builder().id(1L).userId(USER_ID).build());
+        when(shoppingCartMapper.list(any(ShoppingCart.class))).thenReturn(Collections.singletonList(
+                ShoppingCart.builder().name("Burger").dishId(3L).number(1).amount(new BigDecimal("9.50")).build()));
+        OrdersSubmitDTO dto = new OrdersSubmitDTO();
+        dto.setAddressBookId(1L);
+
+        orderService.submitOrder(dto, IDEMPOTENCY_KEY);
+
+        verify(orderMapper).insert(argThat(o -> IDEMPOTENCY_KEY.equals(o.getIdempotencyKey())));
+    }
+
+    @Test
+    void losingARaceOnTheSameKeyReturnsTheWinnersOrder() {
+        // Nothing yet when this request starts; by the time it inserts, the other request has committed.
+        when(orderMapper.getByUserIdAndIdempotencyKey(USER_ID, IDEMPOTENCY_KEY))
+                .thenReturn(null, order(Orders.PENDING_PAYMENT));
+        when(addressBookMapper.getById(1L)).thenReturn(AddressBook.builder().id(1L).userId(USER_ID).build());
+        when(shoppingCartMapper.list(any(ShoppingCart.class))).thenReturn(Collections.singletonList(
+                ShoppingCart.builder().name("Burger").dishId(3L).number(1).amount(new BigDecimal("9.50")).build()));
+        doThrow(new DuplicateKeyException("uk_orders_user_idempotency_key")).when(orderMapper).insert(any(Orders.class));
+        OrdersSubmitDTO dto = new OrdersSubmitDTO();
+        dto.setAddressBookId(1L);
+
+        OrderSubmitVO result = orderService.submitOrder(dto, IDEMPOTENCY_KEY);
+
+        assertEquals(ORDER_ID, result.getId());
+        verify(shoppingCartMapper, never()).deleteByUserId(any());
+    }
+
+    @Test
+    void aMalformedKeyIsRefused() {
+        OrderBusinessException e = assertThrows(OrderBusinessException.class,
+                () -> orderService.submitOrder(new OrdersSubmitDTO(), "not a key!"));
+        assertEquals(MessageConstant.IDEMPOTENCY_KEY_INVALID, e.getMessage());
+        verifyNoInteractions(orderMapper, shoppingCartMapper);
     }
 
     @Test
@@ -176,7 +246,7 @@ class OrderServiceImplTest {
         dto.setAddressBookId(1L);
 
         ShoppingCartBusinessException e = assertThrows(ShoppingCartBusinessException.class,
-                () -> orderService.submitOrder(dto));
+                () -> orderService.submitOrder(dto, null));
         assertEquals(MessageConstant.SHOPPING_CART_IS_NULL, e.getMessage());
         verify(orderMapper, never()).insert(any());
     }
@@ -272,7 +342,7 @@ class OrderServiceImplTest {
         dto.setAddressBookId(1L);
 
         AddressBookBusinessException e = assertThrows(AddressBookBusinessException.class,
-                () -> orderService.submitOrder(dto));
+                () -> orderService.submitOrder(dto, null));
         assertEquals(MessageConstant.ADDRESS_BOOK_IS_NULL, e.getMessage());
         verifyNoInteractions(shoppingCartMapper);
         verify(orderMapper, never()).insert(any());

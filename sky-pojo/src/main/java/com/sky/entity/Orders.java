@@ -98,4 +98,7 @@ public class Orders implements Serializable {
 
 
     private Integer tablewareStatus;
+
+    /** Set when the client sent an Idempotency-Key header; unique per customer. */
+    private String idempotencyKey;
 }

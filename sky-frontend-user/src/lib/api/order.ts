@@ -19,8 +19,8 @@ export const submitOrder = (data: {
   tablewareStatus?: number;
   deliveryStatus?: number;
   estimatedDeliveryTime?: string;
-}) => {
-  return request.post('/user/order/submit', data);
+}, idempotencyKey: string) => {
+  return request.post('/user/order/submit', data, { headers: { 'Idempotency-Key': idempotencyKey } });
 };
 
 

@@ -21,6 +21,9 @@ public interface OrderMapper {
     @Select("select * from orders where number = #{orderNumber} and user_id= #{userId}")
     Orders getByNumberAndUserId(String orderNumber, Long userId);
 
+    @Select("select * from orders where user_id = #{userId} and idempotency_key = #{idempotencyKey}")
+    Orders getByUserIdAndIdempotencyKey(Long userId, String idempotencyKey);
+
     void update(Orders orders);
 
     /**

@@ -25,9 +25,10 @@ public class OrderController {
 
     @PostMapping("/submit")
     @ApiOperation("Submit")
-    public Result<OrderSubmitVO> submit(@RequestBody OrdersSubmitDTO ordersSubmitDTO){
+    public Result<OrderSubmitVO> submit(@RequestBody OrdersSubmitDTO ordersSubmitDTO,
+                                        @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey){
         log.info("Application event: {}",ordersSubmitDTO);
-        OrderSubmitVO orderSubmitVO = orderService.submitOrder(ordersSubmitDTO);
+        OrderSubmitVO orderSubmitVO = orderService.submitOrder(ordersSubmitDTO, idempotencyKey);
         return Result.success(orderSubmitVO);
     }
 

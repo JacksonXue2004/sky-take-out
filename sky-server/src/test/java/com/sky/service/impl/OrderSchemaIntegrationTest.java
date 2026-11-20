@@ -25,4 +25,21 @@ class OrderSchemaIntegrationTest extends MySqlIntegrationTest {
         orderMapper.insert(first);
         assertThrows(DuplicateKeyException.class, () -> orderMapper.insert(second));
     }
+
+    @Test
+    void aCustomerCannotStoreTheSameIdempotencyKeyTwice() {
+        Orders first = TestOrders.order(3L, Orders.PENDING_PAYMENT, Orders.UN_PAID);
+        first.setIdempotencyKey("key-shared-by-two-orders");
+        Orders second = TestOrders.order(3L, Orders.PENDING_PAYMENT, Orders.UN_PAID);
+        second.setIdempotencyKey("key-shared-by-two-orders");
+        Orders otherCustomer = TestOrders.order(4L, Orders.PENDING_PAYMENT, Orders.UN_PAID);
+        otherCustomer.setIdempotencyKey("key-shared-by-two-orders");
+
+        orderMapper.insert(first);
+        assertThrows(DuplicateKeyException.class, () -> orderMapper.insert(second));
+        // Keys are scoped to one customer, and orders without a key never collide.
+        orderMapper.insert(otherCustomer);
+        orderMapper.insert(TestOrders.order(3L, Orders.PENDING_PAYMENT, Orders.UN_PAID));
+        orderMapper.insert(TestOrders.order(3L, Orders.PENDING_PAYMENT, Orders.UN_PAID));
+    }
 }

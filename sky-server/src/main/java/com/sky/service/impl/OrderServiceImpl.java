@@ -26,8 +26,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.CollectionUtils;
 
 import java.math.BigDecimal;
@@ -37,12 +39,18 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Service
 @Slf4j
 public class OrderServiceImpl implements OrderService {
 
+    /** Clients send a UUID or similar; anything else is refused rather than stored. */
+    private static final Pattern IDEMPOTENCY_KEY = Pattern.compile("[A-Za-z0-9_-]{8,64}");
+
+    @Autowired
+    private TransactionTemplate transactionTemplate;
     @Autowired
     private OrderMapper orderMapper;
     @Autowired
@@ -58,12 +66,41 @@ public class OrderServiceImpl implements OrderService {
     @Autowired
     private WebSocketServer webSocketServer;
 
-    @Transactional
-    public OrderSubmitVO submitOrder(OrdersSubmitDTO ordersSubmitDTO) {
-
-
+    /**
+     * Places an order from the signed-in customer's cart.
+     * <p>
+     * With an Idempotency-Key, a retried request (double click, timeout, lost response) returns the
+     * order the first request created instead of placing another one. When two requests with the
+     * same key run at the same time, the UNIQUE KEY (user_id, idempotency_key) lets exactly one insert
+     * succeed; the other rolls back and returns the winner's order.
+     */
+    public OrderSubmitVO submitOrder(OrdersSubmitDTO ordersSubmitDTO, String idempotencyKey) {
         Long userId = BaseContext.getCurrentId();
+        if (idempotencyKey == null) {
+            return transactionTemplate.execute(status -> createOrder(ordersSubmitDTO, userId, null));
+        }
+        if (!IDEMPOTENCY_KEY.matcher(idempotencyKey).matches()) {
+            throw new OrderBusinessException(MessageConstant.IDEMPOTENCY_KEY_INVALID);
+        }
 
+        Orders existing = orderMapper.getByUserIdAndIdempotencyKey(userId, idempotencyKey);
+        if (existing != null) {
+            return toSubmitVO(existing);
+        }
+        try {
+            return transactionTemplate.execute(status -> createOrder(ordersSubmitDTO, userId, idempotencyKey));
+        } catch (DuplicateKeyException | ShoppingCartBusinessException e) {
+            // A concurrent request with the same key committed first, and may already have emptied
+            // the cart. Its transaction is finished, so this fresh read sees the order it created.
+            existing = orderMapper.getByUserIdAndIdempotencyKey(userId, idempotencyKey);
+            if (existing == null) {
+                throw e;
+            }
+            return toSubmitVO(existing);
+        }
+    }
+
+    private OrderSubmitVO createOrder(OrdersSubmitDTO ordersSubmitDTO, Long userId, String idempotencyKey) {
         AddressBook addressBook = addressBookMapper.getById(ordersSubmitDTO.getAddressBookId());
         // Another customer's address is treated as missing.
         if (addressBook == null || !userId.equals(addressBook.getUserId())) {
@@ -95,6 +132,7 @@ public class OrderServiceImpl implements OrderService {
         orders.setPhone(addressBook.getPhone());
         orders.setConsignee(addressBook.getConsignee());
         orders.setUserId(userId);
+        orders.setIdempotencyKey(idempotencyKey);
 
         orderMapper.insert(orders);
 
@@ -112,15 +150,16 @@ public class OrderServiceImpl implements OrderService {
 
         shoppingCartMapper.deleteByUserId(userId);
 
+        return toSubmitVO(orders);
+    }
 
-        OrderSubmitVO orderSubmitVO = OrderSubmitVO.builder()
+    private static OrderSubmitVO toSubmitVO(Orders orders) {
+        return OrderSubmitVO.builder()
                 .id(orders.getId())
                 .orderTime(orders.getOrderTime())
                 .orderNumber(orders.getNumber())
                 .orderAmount(orders.getAmount())
                 .build();
-
-        return orderSubmitVO;
     }
 
     /**

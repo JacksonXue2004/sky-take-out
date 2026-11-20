@@ -6,11 +6,11 @@
     <insert id="insert" parameterType="Orders" useGeneratedKeys="true" keyProperty="id">
         insert into orders (number, status, user_id, address_book_id, order_time, checkout_time, pay_method, pay_status,
                             amount, remark, phone, address, consignee, estimated_delivery_time, delivery_status,
-                            pack_amount, tableware_number, tableware_status)
+                            pack_amount, tableware_number, tableware_status, idempotency_key)
         values
                (#{number}, #{status}, #{userId}, #{addressBookId}, #{orderTime}, #{checkoutTime}, #{payMethod},
                 #{payStatus},#{amount}, #{remark}, #{phone}, #{address}, #{consignee}, #{estimatedDeliveryTime},
-                #{deliveryStatus},#{packAmount}, #{tablewareNumber}, #{tablewareStatus})
+                #{deliveryStatus},#{packAmount}, #{tablewareNumber}, #{tablewareStatus}, #{idempotencyKey})
     </insert>
 
     <update id="update" parameterType="com.sky.entity.Orders">
