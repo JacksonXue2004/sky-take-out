@@ -130,6 +130,27 @@ docker run --rm -i grafana/k6 run - < scripts/load/checkout.js
 
 In PowerShell, use `Get-Content -Raw scripts/load/checkout.js | docker run --rm -i grafana/k6 run -`. On Linux, add `--add-host=host.docker.internal:host-gateway`. Set `CUSTOMERS`, `DURATION`, `USER_API` or `ADMIN_API` with `-e` to change the run.
 
+## Before and after
+
+The same k6 load, run against the previous version of this repository (commit `6e15a40`, original schema) and against this version. Each run used a fresh database seeded from that version's own `docker/mysql/init`, on the same machine as above: 20 customers checking out nonstop plus one customer sending every order 10 times at once, for 60 s (`-e LEGACY=1 -e SKIP_RACE=1`). The middle column is this version without the indexes from `003`, to show which change produced which gain.
+
+| | Before (`6e15a40`) | After, without indexes | After |
+| --- | ---: | ---: | ---: |
+| Completed checkouts per second | 98.2 | 132.5 | 216.4 (+120%) |
+| Place order, p95 | 86.1 ms | 80.4 ms | 41.2 ms (−52%) |
+| Add to cart, p95 | 96.3 ms | 73.6 ms | 49.7 ms (−48%) |
+| Pay, p95 | 74.5 ms | 75.0 ms | 49.6 ms (−33%) |
+| Payments that failed | 986 of 6,880 (14.3%) | 0 | 0 |
+| Orders that shared an order number | 1,551 of 8,788 (17.6%) | 0 | 0 |
+| Extra orders created by retried checkouts | 1,578 in 330 retries | 0 | 0 |
+
+- **Before:** order numbers came from `System.currentTimeMillis()`, so at this load orders created in the same millisecond shared a number, and the payment lookup by number then found two rows and failed. Each retried checkout (10 identical requests) created 5.8 orders on average.
+- **The fixes are in the code:** the middle column, without the indexes, already has no failed payments and no duplicates.
+- **Most of the speed-up comes from the indexes:** without `idx_shopping_cart_user`, every checkout's cart delete scanned and locked the whole cart table, so customers waited on each other.
+- **Test coverage** of the Spring Boot module (JaCoCo): lines 22.7% → 41.3%, branches 17.4% → 43.1%.
+
+Each column is a single run. Treat the percentages as the size of the change on this machine, not as a production benchmark.
+
 ## Known limitations
 
 - **Payments are simulated in the demo.** The customer app marks orders paid through the simulated checkout. Stripe Checkout sessions, the webhook pipeline and refunds are implemented and tested against a local stand-in for Stripe and with signed simulated events, but have not been run against a Stripe test account.
