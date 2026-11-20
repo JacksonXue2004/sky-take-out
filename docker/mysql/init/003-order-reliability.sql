@@ -56,3 +56,14 @@ CREATE TABLE refund_task (
   UNIQUE KEY uk_refund_task_order_id (order_id),
   KEY idx_refund_task_due (status, next_attempt_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Indexes for the queries every request runs; the original schema had primary keys only.
+-- Without idx_shopping_cart_user, the checkout's "delete from shopping_cart where user_id = ?" scans
+-- the whole table and InnoDB locks every row it scans, so two customers checking out at the same
+-- time block each other.
+ALTER TABLE orders
+    ADD KEY idx_orders_user_time (user_id, order_time),
+    ADD KEY idx_orders_status_time (status, order_time);
+ALTER TABLE order_detail ADD KEY idx_order_detail_order (order_id);
+ALTER TABLE shopping_cart ADD KEY idx_shopping_cart_user (user_id);
+ALTER TABLE address_book ADD KEY idx_address_book_user (user_id);
