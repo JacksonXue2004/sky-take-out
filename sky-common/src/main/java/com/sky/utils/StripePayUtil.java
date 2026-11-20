@@ -51,9 +51,10 @@ public class StripePayUtil {
     private final CloseableHttpClient httpClient = HttpClients.custom().setDefaultRequestConfig(TIMEOUTS).build();
 
     /**
-     * While Stripe is down, every call would wait for a timeout and fail anyway. After at least
-     * 5 of the last 10 calls failed on Stripe's side (network, 429, 5xx), the breaker opens and
-     * calls fail at once for 30 seconds; then 2 trial calls decide whether it closes again.
+     * While Stripe is down, every call would wait for a timeout and fail anyway. When at least half
+     * of the last 10 calls failed on Stripe's side (network, 429, 5xx), counting only once 5 calls
+     * have been made, the breaker opens and calls fail at once for 30 seconds; then 2 trial calls
+     * decide whether it closes again.
      * Requests Stripe rejects as invalid (other 4xx) are the caller's fault and do not count.
      */
     private final CircuitBreaker circuitBreaker = CircuitBreaker.of("stripe", CircuitBreakerConfig.custom()
