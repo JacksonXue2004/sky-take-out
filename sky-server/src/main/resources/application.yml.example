@@ -38,6 +38,9 @@ mybatis:
     map-underscore-to-camel-case: true
 
 logging:
+  pattern:
+    # Adds the request id (RequestIdFilter) after the level on every line.
+    level: "%5p [%X{requestId:-}]"
   level:
     com:
       sky:
