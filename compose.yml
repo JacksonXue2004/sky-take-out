@@ -59,6 +59,8 @@ services:
       ALIOSS_BUCKET_NAME: ${ALIOSS_BUCKET_NAME:-}
       SHOP_ADDRESS: ${SHOP_ADDRESS:-Demo Restaurant}
       BAIDU_MAP_AK: ${BAIDU_MAP_AK:-}
+      # The local demo has no Stripe account, so checkout simulates the payment.
+      PAYMENT_SIMULATION_ENABLED: ${PAYMENT_SIMULATION_ENABLED:-true}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY:-}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}

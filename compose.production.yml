@@ -35,7 +35,7 @@ services:
     image: ghcr.io/jacksonxue2004/sky-backend:${IMAGE_TAG:-latest}
     restart: unless-stopped
     environment:
-      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
       DB_HOST: mysql
       DB_PORT: 3306
       DB_NAME: ${DB_NAME:-sky_take_out}
@@ -53,6 +53,8 @@ services:
       ALIOSS_BUCKET_NAME: ${ALIOSS_BUCKET_NAME:-}
       SHOP_ADDRESS: ${SHOP_ADDRESS:-Demo Restaurant}
       BAIDU_MAP_AK: ${BAIDU_MAP_AK:-}
+      # Off unless set: when on, any customer can mark their own orders paid without paying.
+      PAYMENT_SIMULATION_ENABLED: ${PAYMENT_SIMULATION_ENABLED:-false}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY:-}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}

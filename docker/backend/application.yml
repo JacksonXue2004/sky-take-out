@@ -47,6 +47,9 @@ sky:
     address: ${SHOP_ADDRESS:Demo Restaurant}
   baidu:
     ak: ${BAIDU_MAP_AK:}
+  payment:
+    # Lets customers mark their own orders paid without Stripe. For demos only; never with real money.
+    simulation-enabled: ${PAYMENT_SIMULATION_ENABLED:false}
   stripe:
     secret-key: ${STRIPE_SECRET_KEY:}
     publishable-key: ${STRIPE_PUBLISHABLE_KEY:}
