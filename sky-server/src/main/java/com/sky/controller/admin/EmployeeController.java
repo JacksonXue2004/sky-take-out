@@ -34,7 +34,7 @@ public class EmployeeController {
     @PostMapping("/login")
     @ApiOperation(value = "Login")
     public Result<EmployeeLoginVO> login(@RequestBody EmployeeLoginDTO employeeLoginDTO) {
-        log.info("Application event: {}", employeeLoginDTO);
+        log.info("Employee login attempt: {}", employeeLoginDTO.getUsername());
 
         Employee employee = employeeService.login(employeeLoginDTO);
 

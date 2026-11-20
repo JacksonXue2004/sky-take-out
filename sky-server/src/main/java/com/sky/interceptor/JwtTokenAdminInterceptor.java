@@ -32,10 +32,9 @@ public class JwtTokenAdminInterceptor implements HandlerInterceptor {
 
 
         try {
-            log.info("Application event: {}", token);
             Claims claims = JwtUtil.parseJWT(jwtProperties.getAdminSecretKey(), token);
             Long empId = Long.valueOf(claims.get(JwtClaimsConstant.EMP_ID).toString());
-            log.info("Application event: {}", empId);
+            log.debug("Authenticated request for id {}", empId);
             BaseContext.setCurrentId(empId);
 
             return true;
