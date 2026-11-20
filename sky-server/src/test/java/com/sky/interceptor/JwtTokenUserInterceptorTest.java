@@ -22,6 +22,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class JwtTokenUserInterceptorTest {
@@ -68,6 +69,21 @@ class JwtTokenUserInterceptorTest {
         assertEquals(42L, BaseContext.getCurrentId());
         assertFalse(logs.list.stream().anyMatch(event -> event.getFormattedMessage().contains(token)),
                 "the bearer token must not be written to the log");
+    }
+
+    @Test
+    void theSignedInUserIsClearedWhenTheRequestCompletes() throws Exception {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put(JwtClaimsConstant.USER_ID, 42L);
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader("authentication", JwtUtil.createJWT(SECRET, 60_000, claims));
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        interceptor.preHandle(request, response, handler());
+        interceptor.afterCompletion(request, response, handler(), null);
+
+        // The next request served by this pooled thread must not inherit user 42.
+        assertNull(BaseContext.getCurrentId());
     }
 
     @Test

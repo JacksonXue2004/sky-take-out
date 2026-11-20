@@ -45,4 +45,10 @@ public class JwtTokenUserInterceptor implements HandlerInterceptor {
             return false;
         }
     }
+
+    /** Tomcat reuses request threads, so the signed-in id must not outlive this request. */
+    @Override
+    public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) {
+        BaseContext.removeCurrentId();
+    }
 }
