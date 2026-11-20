@@ -1,5 +1,6 @@
 package com.sky.controller.admin;
 
+import com.sky.cache.CacheCleaner;
 import com.sky.dto.DishDTO;
 import com.sky.dto.DishPageQueryDTO;
 import com.sky.entity.Dish;
@@ -11,11 +12,9 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Set;
 
 @RestController
 @RequestMapping("/admin/dish")
@@ -26,7 +25,7 @@ public class DishController {
     @Autowired
     private DishService dishService;
     @Autowired
-    private RedisTemplate redisTemplate;
+    private CacheCleaner cacheCleaner;
 
     @PostMapping
     @ApiOperation("Save")
@@ -99,13 +98,6 @@ public class DishController {
     }
 
     private void cleanCache(String pattern){
-        try {
-            Set keys = redisTemplate.keys(pattern);
-            if (keys != null && !keys.isEmpty()) {
-                redisTemplate.delete(keys);
-            }
-        } catch (Exception e) {
-            log.warn("Application event: {}", e.getMessage());
-        }
+        cacheCleaner.deleteByPattern(pattern);
     }
 }

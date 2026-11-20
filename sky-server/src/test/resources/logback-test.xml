@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Tests that start Docker containers without a Spring context would otherwise log at logback's
+  default DEBUG level. This keeps Spring Boot's console format and an INFO default for every test.
+-->
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+    <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+    <logger name="com.github.dockerjava" level="WARN"/>
+</configuration>
