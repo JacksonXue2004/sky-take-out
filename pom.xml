@@ -31,6 +31,8 @@
         <jaxb-api>2.3.1</jaxb-api>
         <poi>3.16</poi>
         <testcontainers>1.21.4</testcontainers>
+        <!-- 1.7.x is the last line that runs on Java 8 -->
+        <resilience4j>1.7.1</resilience4j>
     </properties>
     <dependencyManagement>
         <dependencies>
@@ -124,6 +126,11 @@
                 <version>0.4.8</version>
             </dependency>
 
+            <dependency>
+                <groupId>io.github.resilience4j</groupId>
+                <artifactId>resilience4j-circuitbreaker</artifactId>
+                <version>${resilience4j}</version>
+            </dependency>
             <dependency>
                 <groupId>org.testcontainers</groupId>
                 <artifactId>junit-jupiter</artifactId>

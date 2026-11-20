@@ -4,6 +4,9 @@ import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import com.sky.exception.StripeApiException;
 import com.sky.properties.StripeProperties;
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.config.RequestConfig;
@@ -25,6 +28,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -45,6 +49,27 @@ public class StripePayUtil {
     private StripeProperties stripeProperties;
 
     private final CloseableHttpClient httpClient = HttpClients.custom().setDefaultRequestConfig(TIMEOUTS).build();
+
+    /**
+     * While Stripe is down, every call would wait for a timeout and fail anyway. After at least
+     * 5 of the last 10 calls failed on Stripe's side (network, 429, 5xx), the breaker opens and
+     * calls fail at once for 30 seconds; then 2 trial calls decide whether it closes again.
+     * Requests Stripe rejects as invalid (other 4xx) are the caller's fault and do not count.
+     */
+    private final CircuitBreaker circuitBreaker = CircuitBreaker.of("stripe", CircuitBreakerConfig.custom()
+            .slidingWindowType(CircuitBreakerConfig.SlidingWindowType.COUNT_BASED)
+            .slidingWindowSize(10)
+            .minimumNumberOfCalls(5)
+            .failureRateThreshold(50)
+            .waitDurationInOpenState(Duration.ofSeconds(30))
+            .permittedNumberOfCallsInHalfOpenState(2)
+            .recordException(e -> e instanceof StripeApiException && ((StripeApiException) e).isRetryable())
+            .build());
+
+    public StripePayUtil() {
+        circuitBreaker.getEventPublisher().onStateTransition(
+                event -> log.warn("Stripe circuit breaker: {}", event.getStateTransition()));
+    }
 
     /**
      * Creates a Stripe Checkout session for one order. The order number travels in the metadata,
@@ -78,15 +103,28 @@ public class StripePayUtil {
         return amount.movePointRight(2).setScale(0, RoundingMode.HALF_UP).longValueExact();
     }
 
-    /**
-     * Stripe's API takes form-encoded parameters and authenticates with the secret key as a
-     * Bearer token. Any non-2xx response becomes a StripeApiException carrying Stripe's message.
-     */
     private JSONObject post(String path, Map<String, String> params, String idempotencyKey) {
         String secretKey = stripeProperties.getSecretKey();
         if (secretKey == null || secretKey.isEmpty()) {
             throw new StripeApiException(0, "The Stripe secret key is not configured", false);
         }
+        try {
+            return circuitBreaker.executeSupplier(() -> send(path, params, idempotencyKey, secretKey));
+        } catch (CallNotPermittedException open) {
+            throw new StripeApiException(0, "Stripe calls are paused after repeated failures (circuit breaker open)", true);
+        }
+    }
+
+    /** Circuit breaker state, for monitoring: CLOSED, OPEN or HALF_OPEN. */
+    public String circuitBreakerState() {
+        return circuitBreaker.getState().name();
+    }
+
+    /**
+     * Stripe's API takes form-encoded parameters and authenticates with the secret key as a
+     * Bearer token. Any non-2xx response becomes a StripeApiException carrying Stripe's message.
+     */
+    private JSONObject send(String path, Map<String, String> params, String idempotencyKey, String secretKey) {
         HttpPost request = new HttpPost(stripeProperties.getApiBase() + path);
         request.setHeader("Authorization", "Bearer " + secretKey);
         request.setHeader("Idempotency-Key", idempotencyKey);

@@ -19,6 +19,7 @@ import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -170,6 +171,44 @@ class StripePayUtilTest {
     }
 
     @Test
+    void repeatedStripeFailuresOpenTheCircuitSoLaterCallsFailWithoutWaiting() throws Exception {
+        FakeStripe stripe = FakeStripe.start(503, "{\"error\":{\"message\":\"unavailable\"}}");
+        try {
+            useApi(stripe);
+            for (int i = 0; i < 5; i++) {
+                assertThrows(StripeApiException.class,
+                        () -> stripePayUtil.refund("pi_test_1", new BigDecimal("5.00"), "refund-x"));
+            }
+            assertEquals("OPEN", stripePayUtil.circuitBreakerState());
+
+            StripeApiException e = assertThrows(StripeApiException.class,
+                    () -> stripePayUtil.refund("pi_test_1", new BigDecimal("5.00"), "refund-x"));
+            assertTrue(e.getMessage().contains("circuit breaker open"), e.getMessage());
+            assertTrue(e.isRetryable());
+            // The sixth call never reached Stripe.
+            assertEquals(5, stripe.requests.get());
+        } finally {
+            stripe.stop();
+        }
+    }
+
+    @Test
+    void requestsStripeRejectsAsInvalidDoNotOpenTheCircuit() throws Exception {
+        FakeStripe stripe = FakeStripe.start(400, "{\"error\":{\"message\":\"bad request\"}}");
+        try {
+            useApi(stripe);
+            for (int i = 0; i < 8; i++) {
+                assertThrows(StripeApiException.class,
+                        () -> stripePayUtil.refund("pi_test_1", new BigDecimal("5.00"), "refund-x"));
+            }
+            assertEquals("CLOSED", stripePayUtil.circuitBreakerState());
+            assertEquals(8, stripe.requests.get());
+        } finally {
+            stripe.stop();
+        }
+    }
+
+    @Test
     void noRequestIsSentWithoutASecretKey() {
         properties.setSecretKey("");
 
@@ -197,10 +236,12 @@ class StripePayUtilTest {
         volatile String path;
         volatile Headers headers;
         volatile String body;
+        final AtomicInteger requests = new AtomicInteger();
 
         private FakeStripe(int status, String response) throws IOException {
             server = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
             server.createContext("/", exchange -> {
+                requests.incrementAndGet();
                 method = exchange.getRequestMethod();
                 path = exchange.getRequestURI().getPath();
                 headers = exchange.getRequestHeaders();
