@@ -8,6 +8,7 @@ import com.sky.enumeration.OperationType;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 
 @Mapper
 public interface EmployeeMapper {
@@ -25,6 +26,10 @@ public interface EmployeeMapper {
 
     @AutoFill(value = OperationType.UPDATE)
     void update(Employee employee);
+
+    /** Replaces only the password hash; unlike update, it leaves update_time and update_user alone. */
+    @Update("update employee set password = #{password} where id = #{id}")
+    void updatePassword(Long id, String password);
 
     @Select("select * from employee where id = #{id}")
     Employee getById(Long id);

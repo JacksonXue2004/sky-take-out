@@ -3,6 +3,7 @@ package com.sky.mapper;
 import com.sky.entity.User;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 
 import java.util.Map;
 
@@ -16,6 +17,9 @@ public interface UserMapper {
     User getByEmail(String email);
 
     void insert(User user);
+
+    @Update("update user set password = #{password} where id = #{id}")
+    void updatePassword(Long id, String password);
 
     @Select("select * from user where id = #{id}")
     User getById(Long userId);

@@ -8,10 +8,10 @@ import com.sky.exception.AccountNotFoundException;
 import com.sky.exception.PasswordErrorException;
 import com.sky.mapper.UserMapper;
 import com.sky.service.UserService;
+import com.sky.utils.PasswordHasher;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.util.DigestUtils;
 
 import java.time.LocalDateTime;
 
@@ -35,9 +35,12 @@ public class UserServiceImpl implements UserService {
         }
 
 
-        String md5Password = DigestUtils.md5DigestAsHex(password.getBytes());
-        if (!md5Password.equals(user.getPassword())) {
+        if (!PasswordHasher.matches(password, user.getPassword())) {
             throw new PasswordErrorException(MessageConstant.PASSWORD_ERROR);
+        }
+        // The password was just verified, so an old MD5 hash can be replaced with BCrypt now.
+        if (PasswordHasher.needsRehash(user.getPassword())) {
+            userMapper.updatePassword(user.getId(), PasswordHasher.hash(password));
         }
 
 
@@ -57,7 +60,7 @@ public class UserServiceImpl implements UserService {
 
         User user = User.builder()
                 .email(email)
-                .password(DigestUtils.md5DigestAsHex(password.getBytes()))
+                .password(PasswordHasher.hash(password))
                 .createTime(LocalDateTime.now())
                 .build();
 

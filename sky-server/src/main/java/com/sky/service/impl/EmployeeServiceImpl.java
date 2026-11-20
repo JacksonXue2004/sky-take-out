@@ -16,10 +16,10 @@ import com.sky.exception.PasswordErrorException;
 import com.sky.mapper.EmployeeMapper;
 import com.sky.result.PageResult;
 import com.sky.service.EmployeeService;
+import com.sky.utils.PasswordHasher;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.util.DigestUtils;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -44,10 +44,13 @@ public class EmployeeServiceImpl implements EmployeeService {
         }
 
 
-        password = DigestUtils.md5DigestAsHex(password.getBytes());
-        if (!password.equals(employee.getPassword())) {
+        if (!PasswordHasher.matches(password, employee.getPassword())) {
 
             throw new PasswordErrorException(MessageConstant.PASSWORD_ERROR);
+        }
+        // The password was just verified, so an old MD5 hash can be replaced with BCrypt now.
+        if (PasswordHasher.needsRehash(employee.getPassword())) {
+            employeeMapper.updatePassword(employee.getId(), PasswordHasher.hash(password));
         }
 
         if (employee.getStatus() == StatusConstant.DISABLE) {
@@ -69,7 +72,7 @@ public class EmployeeServiceImpl implements EmployeeService {
         employee.setStatus(StatusConstant.ENABLE);
 
 
-        employee.setPassword(DigestUtils.md5DigestAsHex(PasswordConstant.DEFAULT_PASSWORD.getBytes()));
+        employee.setPassword(PasswordHasher.hash(PasswordConstant.DEFAULT_PASSWORD));
 
 
         //employee.setCreateTime(LocalDateTime.now());
