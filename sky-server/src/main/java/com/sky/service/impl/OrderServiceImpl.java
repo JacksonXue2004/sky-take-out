@@ -61,17 +61,16 @@ public class OrderServiceImpl implements OrderService {
     public OrderSubmitVO submitOrder(OrdersSubmitDTO ordersSubmitDTO) {
 
 
-        AddressBook addressBook = addressBookMapper.getById(ordersSubmitDTO.getAddressBookId());
-        if(addressBook == null){
+        Long userId = BaseContext.getCurrentId();
 
+        AddressBook addressBook = addressBookMapper.getById(ordersSubmitDTO.getAddressBookId());
+        // Another customer's address is treated as missing.
+        if (addressBook == null || !userId.equals(addressBook.getUserId())) {
             throw new AddressBookBusinessException(MessageConstant.ADDRESS_BOOK_IS_NULL);
         }
 
 
         //checkOutOfRange(addressBook.getCityName() + addressBook.getDistrictName() + addressBook.getDetail());
-
-
-        Long userId = BaseContext.getCurrentId();
 
         ShoppingCart shoppingCart = new ShoppingCart();
         shoppingCart.setUserId(userId);
@@ -199,7 +198,7 @@ public class OrderServiceImpl implements OrderService {
 
     public OrderPaymentVO payment(OrdersPaymentDTO ordersPaymentDTO) throws Exception {
 
-        Orders orders = orderMapper.getByNumber(ordersPaymentDTO.getOrderNumber());
+        Orders orders = orderMapper.getByNumberAndUserId(ordersPaymentDTO.getOrderNumber(), BaseContext.getCurrentId());
         if (orders == null) {
             throw new OrderBusinessException(MessageConstant.ORDER_NOT_FOUND);
         }
@@ -261,6 +260,14 @@ public class OrderServiceImpl implements OrderService {
         webSocketServer.sendToAllClient(json);
     }
 
+    /** Development checkout: marks one of the signed-in customer's own orders as paid. */
+    public void simulatePayment(String orderNumber) {
+        if (orderMapper.getByNumberAndUserId(orderNumber, BaseContext.getCurrentId()) == null) {
+            throw new OrderBusinessException(MessageConstant.ORDER_NOT_FOUND);
+        }
+        paySuccess(orderNumber);
+    }
+
     public PageResult pageQuery4User(int pageNum, int pageSize, Integer status) {
 
         PageHelper.startPage(pageNum, pageSize);
@@ -292,13 +299,18 @@ public class OrderServiceImpl implements OrderService {
         return new PageResult(page.getTotal(), list);
     }
 
+    /** Merchant view: any order. */
     public OrderVO details(Long id) {
+        return toOrderVO(getOrderOrThrow(id));
+    }
 
-        Orders orders = orderMapper.getById(id);
+    /** Customer view: only the signed-in customer's own orders. */
+    public OrderVO detailsForCurrentUser(Long id) {
+        return toOrderVO(getOwnOrderOrThrow(id));
+    }
 
-
+    private OrderVO toOrderVO(Orders orders) {
         List<OrderDetail> orderDetailList = orderDetailMapper.getByOrderId(orders.getId());
-
 
         OrderVO orderVO = new OrderVO();
         BeanUtils.copyProperties(orders, orderVO);
@@ -309,11 +321,7 @@ public class OrderServiceImpl implements OrderService {
 
     @Transactional
     public void userCancelById(Long id) throws Exception {
-        Orders ordersDB = getOrderOrThrow(id);
-        // Another customer's order is reported as missing so its existence is not revealed.
-        if (!ordersDB.getUserId().equals(BaseContext.getCurrentId())) {
-            throw new OrderBusinessException(MessageConstant.ORDER_NOT_FOUND);
-        }
+        Orders ordersDB = getOwnOrderOrThrow(id);
         boolean paid = Orders.PAID.equals(ordersDB.getPayStatus());
 
         Orders orders = new Orders();
@@ -332,7 +340,7 @@ public class OrderServiceImpl implements OrderService {
     public void repetition(Long id) {
 
         Long userId = BaseContext.getCurrentId();
-
+        getOwnOrderOrThrow(id);
 
         List<OrderDetail> orderDetailList = orderDetailMapper.getByOrderId(id);
 
@@ -474,6 +482,18 @@ public class OrderServiceImpl implements OrderService {
     }
 
     /**
+     * Like getOrderOrThrow, but another customer's order is reported as missing,
+     * so a customer cannot read or act on it, or even learn that the id exists.
+     */
+    private Orders getOwnOrderOrThrow(Long id) {
+        Orders ordersDB = orderMapper.getById(id);
+        if (ordersDB == null || !ordersDB.getUserId().equals(BaseContext.getCurrentId())) {
+            throw new OrderBusinessException(MessageConstant.ORDER_NOT_FOUND);
+        }
+        return ordersDB;
+    }
+
+    /**
      * Moves the order to the transition's target status with
      * UPDATE ... WHERE id = ? AND status = <status we just read>.
      * If another request changed the order in between, no row matches and the change is refused.
@@ -500,12 +520,7 @@ public class OrderServiceImpl implements OrderService {
 
     public void reminder(Long id) {
 
-        Orders ordersDB = orderMapper.getById(id);
-
-
-        if (ordersDB == null) {
-            throw new OrderBusinessException(MessageConstant.ORDER_STATUS_ERROR);
-        }
+        Orders ordersDB = getOwnOrderOrThrow(id);
 
         Map map = new HashMap();
         map.put("type",2);

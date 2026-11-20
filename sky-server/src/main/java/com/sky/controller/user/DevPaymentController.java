@@ -36,7 +36,7 @@ public class DevPaymentController {
     @ApiOperation("Simulate a successful payment in development")
     public Result simulatePayment(@RequestBody OrdersPaymentDTO ordersPaymentDTO) {
         log.info("Simulating successful payment for order: {}", ordersPaymentDTO.getOrderNumber());
-        orderService.paySuccess(ordersPaymentDTO.getOrderNumber());
+        orderService.simulatePayment(ordersPaymentDTO.getOrderNumber());
         return Result.success();
     }
 }

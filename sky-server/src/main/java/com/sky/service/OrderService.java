@@ -14,9 +14,13 @@ public interface OrderService {
 
     void paySuccess(String outTradeNo);
 
+    void simulatePayment(String orderNumber);
+
     PageResult pageQuery4User(int page, int pageSize, Integer status);
 
     OrderVO details(Long id);
+
+    OrderVO detailsForCurrentUser(Long id);
 
     void userCancelById(Long id) throws Exception;
 

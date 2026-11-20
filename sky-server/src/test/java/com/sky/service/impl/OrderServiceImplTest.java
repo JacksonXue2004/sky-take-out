@@ -4,12 +4,14 @@ import com.sky.constant.MessageConstant;
 import com.sky.context.BaseContext;
 import com.sky.dto.OrdersCancelDTO;
 import com.sky.dto.OrdersConfirmDTO;
+import com.sky.dto.OrdersPaymentDTO;
 import com.sky.dto.OrdersRejectionDTO;
 import com.sky.dto.OrdersSubmitDTO;
 import com.sky.entity.AddressBook;
 import com.sky.entity.OrderTransition;
 import com.sky.entity.Orders;
 import com.sky.entity.ShoppingCart;
+import com.sky.exception.AddressBookBusinessException;
 import com.sky.exception.OrderBusinessException;
 import com.sky.exception.ShoppingCartBusinessException;
 import com.sky.mapper.AddressBookMapper;
@@ -18,6 +20,7 @@ import com.sky.mapper.OrderMapper;
 import com.sky.mapper.ShoppingCartMapper;
 import com.sky.utils.StripePayUtil;
 import com.sky.vo.OrderSubmitVO;
+import com.sky.vo.OrderVO;
 import com.sky.websocket.WebSocketServer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -97,7 +100,7 @@ class OrderServiceImplTest {
     @Test
     void submitOrderSavesPendingOrderAndClearsCart() {
         when(addressBookMapper.getById(1L)).thenReturn(
-                AddressBook.builder().id(1L).consignee("Alex").phone("4085550100").detail("1 Main St").build());
+                AddressBook.builder().id(1L).userId(USER_ID).consignee("Alex").phone("4085550100").detail("1 Main St").build());
         ShoppingCart burger = ShoppingCart.builder().name("Burger").dishId(3L).number(2).amount(new BigDecimal("9.50")).build();
         when(shoppingCartMapper.list(any(ShoppingCart.class))).thenReturn(Collections.singletonList(burger));
         doAnswer(invocation -> {
@@ -145,7 +148,7 @@ class OrderServiceImplTest {
 
     @Test
     void submitOrderRejectsEmptyCart() {
-        when(addressBookMapper.getById(1L)).thenReturn(AddressBook.builder().id(1L).build());
+        when(addressBookMapper.getById(1L)).thenReturn(AddressBook.builder().id(1L).userId(USER_ID).build());
         when(shoppingCartMapper.list(any(ShoppingCart.class))).thenReturn(Collections.emptyList());
 
         OrdersSubmitDTO dto = new OrdersSubmitDTO();
@@ -236,6 +239,88 @@ class OrderServiceImplTest {
                 () -> orderService.userCancelById(ORDER_ID));
         assertEquals(MessageConstant.ORDER_NOT_FOUND, e.getMessage());
         verify(orderMapper, never()).updateStatus(any(), any());
+    }
+
+    // ---------- customers only reach their own orders and addresses ----------
+
+    @Test
+    void submitOrderRejectsAnotherCustomersAddress() {
+        when(addressBookMapper.getById(1L)).thenReturn(AddressBook.builder().id(1L).userId(8L).build());
+
+        OrdersSubmitDTO dto = new OrdersSubmitDTO();
+        dto.setAddressBookId(1L);
+
+        AddressBookBusinessException e = assertThrows(AddressBookBusinessException.class,
+                () -> orderService.submitOrder(dto));
+        assertEquals(MessageConstant.ADDRESS_BOOK_IS_NULL, e.getMessage());
+        verifyNoInteractions(shoppingCartMapper);
+        verify(orderMapper, never()).insert(any());
+    }
+
+    @Test
+    void customerCanReadTheirOwnOrder() {
+        when(orderMapper.getById(ORDER_ID)).thenReturn(order(Orders.TO_BE_CONFIRMED));
+
+        OrderVO vo = orderService.detailsForCurrentUser(ORDER_ID);
+
+        assertEquals(ORDER_ID, vo.getId());
+        verify(orderDetailMapper).getByOrderId(ORDER_ID);
+    }
+
+    @Test
+    void customerCannotReadAnotherCustomersOrder() {
+        when(orderMapper.getById(ORDER_ID)).thenReturn(orderOf(8L, Orders.TO_BE_CONFIRMED));
+
+        OrderBusinessException e = assertThrows(OrderBusinessException.class,
+                () -> orderService.detailsForCurrentUser(ORDER_ID));
+        assertEquals(MessageConstant.ORDER_NOT_FOUND, e.getMessage());
+        verifyNoInteractions(orderDetailMapper);
+    }
+
+    @Test
+    void merchantDetailsReportAMissingOrderInsteadOfFailing() {
+        when(orderMapper.getById(ORDER_ID)).thenReturn(null);
+
+        OrderBusinessException e = assertThrows(OrderBusinessException.class,
+                () -> orderService.details(ORDER_ID));
+        assertEquals(MessageConstant.ORDER_NOT_FOUND, e.getMessage());
+    }
+
+    @Test
+    void customerCannotReorderAnotherCustomersOrder() {
+        when(orderMapper.getById(ORDER_ID)).thenReturn(orderOf(8L, Orders.COMPLETED));
+
+        assertThrows(OrderBusinessException.class, () -> orderService.repetition(ORDER_ID));
+        verifyNoInteractions(orderDetailMapper, shoppingCartMapper);
+    }
+
+    @Test
+    void customerCannotRemindTheMerchantAboutAnotherCustomersOrder() {
+        when(orderMapper.getById(ORDER_ID)).thenReturn(orderOf(8L, Orders.CONFIRMED));
+
+        assertThrows(OrderBusinessException.class, () -> orderService.reminder(ORDER_ID));
+        verifyNoInteractions(webSocketServer);
+    }
+
+    @Test
+    void customerCannotStartPaymentForAnotherCustomersOrder() {
+        // The lookup includes the signed-in customer's id, so someone else's order is not found.
+        when(orderMapper.getByNumberAndUserId(ORDER_NUMBER, USER_ID)).thenReturn(null);
+        OrdersPaymentDTO dto = new OrdersPaymentDTO();
+        dto.setOrderNumber(ORDER_NUMBER);
+
+        OrderBusinessException e = assertThrows(OrderBusinessException.class, () -> orderService.payment(dto));
+        assertEquals(MessageConstant.ORDER_NOT_FOUND, e.getMessage());
+        verifyNoInteractions(stripePayUtil);
+    }
+
+    @Test
+    void simulatedPaymentOnlyPaysTheCustomersOwnOrder() {
+        when(orderMapper.getByNumberAndUserId(ORDER_NUMBER, USER_ID)).thenReturn(null);
+
+        assertThrows(OrderBusinessException.class, () -> orderService.simulatePayment(ORDER_NUMBER));
+        verify(orderMapper, never()).updateStatus(any(), any());
+        verifyNoInteractions(webSocketServer);
     }
 
     // ---------- payment callbacks ----------
@@ -361,10 +446,14 @@ class OrderServiceImplTest {
     }
 
     private static Orders order(Integer status) {
+        return orderOf(USER_ID, status);
+    }
+
+    private static Orders orderOf(Long userId, Integer status) {
         return Orders.builder()
                 .id(ORDER_ID)
                 .number(ORDER_NUMBER)
-                .userId(USER_ID)
+                .userId(userId)
                 .status(status)
                 .payStatus(Orders.PENDING_PAYMENT.equals(status) ? Orders.UN_PAID : Orders.PAID)
                 .amount(AMOUNT)
