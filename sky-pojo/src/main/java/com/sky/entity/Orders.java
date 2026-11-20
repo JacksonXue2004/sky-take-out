@@ -91,10 +91,10 @@ public class Orders implements Serializable {
     private LocalDateTime deliveryTime;
 
 
-    private int packAmount;
+    private Integer packAmount;
 
 
-    private int tablewareNumber;
+    private Integer tablewareNumber;
 
 
     private Integer tablewareStatus;
