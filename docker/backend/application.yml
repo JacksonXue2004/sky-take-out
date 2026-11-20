@@ -18,6 +18,19 @@ spring:
     password: ${REDIS_PASSWORD}
     database: ${REDIS_DATABASE:10}
 
+management:
+  server:
+    # A separate port that docker compose does not publish and nginx does not proxy.
+    port: ${MANAGEMENT_PORT:9090}
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      # Shows the database and Redis checks. Safe only because this port is internal.
+      show-details: always
+
 mybatis:
   mapper-locations: classpath:mapper/*.xml
   type-aliases-package: com.sky.entity

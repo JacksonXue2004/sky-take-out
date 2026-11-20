@@ -1,5 +1,6 @@
 package com.sky.controller.nofity;
 
+import com.sky.metrics.OrderMetrics;
 import com.sky.service.StripeWebhookService;
 import com.sky.utils.StripePayUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +28,8 @@ public class PayNotifyController {
     private StripeWebhookService stripeWebhookService;
     @Autowired
     private StripePayUtil stripePayUtil;
+    @Autowired
+    private OrderMetrics orderMetrics;
 
     /**
      * Stripe webhook. The body is read as raw text because the signature covers the exact bytes
@@ -49,6 +52,7 @@ public class PayNotifyController {
 
         if (!stripePayUtil.verifyWebhookSignature(payload, stripeSignature)) {
             log.warn("Rejected a Stripe webhook with a missing, invalid or expired signature");
+            orderMetrics.webhookEvent("invalid_signature");
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             result.put("received", "invalid signature");
             return result;
@@ -62,6 +66,7 @@ public class PayNotifyController {
             log.error("Failed to record a Stripe webhook", e);
             outcome = StripeWebhookService.Outcome.FAILED;
         }
+        orderMetrics.webhookEvent(outcome.name().toLowerCase(Locale.ROOT));
         if (outcome == StripeWebhookService.Outcome.FAILED) {
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
         }

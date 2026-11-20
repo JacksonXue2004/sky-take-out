@@ -14,6 +14,7 @@ import com.sky.exception.OrderBusinessException;
 import com.sky.exception.ShoppingCartBusinessException;
 import com.sky.exception.StripeApiException;
 import com.sky.mapper.*;
+import com.sky.metrics.OrderMetrics;
 import com.sky.result.PageResult;
 import com.sky.service.OrderService;
 import com.sky.service.RefundService;
@@ -67,6 +68,8 @@ public class OrderServiceImpl implements OrderService {
     private StripePayUtil stripePayUtil;
     @Autowired
     private RefundService refundService;
+    @Autowired
+    private OrderMetrics orderMetrics;
     @Autowired
     private WebSocketServer webSocketServer;
 
@@ -153,6 +156,7 @@ public class OrderServiceImpl implements OrderService {
 
 
         shoppingCartMapper.deleteByUserId(userId);
+        orderMetrics.orderPlaced();
 
         return toSubmitVO(orders);
     }

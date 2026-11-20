@@ -13,6 +13,22 @@ spring:
     host: localhost
     port: 6379
 
+management:
+  server:
+    # A random port, separate from the application's, as in production.
+    port: 0
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+  health:
+    # Tests run without Redis.
+    redis:
+      enabled: false
+
 mybatis:
   mapper-locations: classpath:mapper/*.xml
   type-aliases-package: com.sky.entity

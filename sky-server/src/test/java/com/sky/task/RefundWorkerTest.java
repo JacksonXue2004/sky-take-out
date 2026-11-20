@@ -4,6 +4,7 @@ import com.alibaba.fastjson.JSONObject;
 import com.sky.entity.RefundTask;
 import com.sky.exception.StripeApiException;
 import com.sky.mapper.RefundTaskMapper;
+import com.sky.metrics.OrderMetrics;
 import com.sky.utils.StripePayUtil;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -36,6 +37,8 @@ class RefundWorkerTest {
     private RefundTaskMapper refundTaskMapper;
     @Mock
     private StripePayUtil stripePayUtil;
+    @Mock
+    private OrderMetrics orderMetrics;
 
     @InjectMocks
     private RefundWorker worker;
@@ -50,6 +53,7 @@ class RefundWorkerTest {
         worker.processDueRefunds();
 
         verify(refundTaskMapper).markSucceeded(eq(1L), eq("re_test_1"), any());
+        verify(orderMetrics).refund("succeeded");
     }
 
     @Test
@@ -79,6 +83,7 @@ class RefundWorkerTest {
 
         verify(refundTaskMapper).markFailed(eq(1L), anyString(), any());
         verify(refundTaskMapper, never()).reschedule(any(), any(), any(), any());
+        verify(orderMetrics).refund("failed");
     }
 
     @Test

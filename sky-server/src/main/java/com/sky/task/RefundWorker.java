@@ -4,6 +4,7 @@ import com.alibaba.fastjson.JSONObject;
 import com.sky.entity.RefundTask;
 import com.sky.exception.StripeApiException;
 import com.sky.mapper.RefundTaskMapper;
+import com.sky.metrics.OrderMetrics;
 import com.sky.utils.StripePayUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,6 +38,8 @@ public class RefundWorker {
     private RefundTaskMapper refundTaskMapper;
     @Autowired
     private StripePayUtil stripePayUtil;
+    @Autowired
+    private OrderMetrics orderMetrics;
 
     @Scheduled(fixedDelayString = "${sky.refund.poll-interval-ms:10000}",
             initialDelayString = "${sky.refund.initial-delay-ms:10000}")
@@ -59,6 +62,7 @@ public class RefundWorker {
             JSONObject refund = stripePayUtil.refund(
                     task.getPaymentIntentId(), task.getAmount(), "refund-" + task.getOrderNumber());
             refundTaskMapper.markSucceeded(task.getId(), refund.getString("id"), LocalDateTime.now());
+            orderMetrics.refund("succeeded");
             log.info("Refunded order {} ({})", task.getOrderNumber(), refund.getString("id"));
         } catch (StripeApiException e) {
             recordFailure(task, e.getMessage(), e.isRetryable());
@@ -73,12 +77,14 @@ public class RefundWorker {
         String message = error == null || error.length() <= MAX_ERROR_LENGTH ? error : error.substring(0, MAX_ERROR_LENGTH);
         if (!retryable || attempts >= MAX_ATTEMPTS) {
             refundTaskMapper.markFailed(task.getId(), message, now);
+            orderMetrics.refund("failed");
             log.error("Refund for order {} FAILED after {} attempt(s) and needs manual handling: {}",
                     task.getOrderNumber(), attempts, message);
             return;
         }
         LocalDateTime next = now.plusMinutes(BACKOFF_MINUTES[attempts - 1]);
         refundTaskMapper.reschedule(task.getId(), next, message, now);
+        orderMetrics.refund("retry_scheduled");
         log.warn("Refund for order {} failed (attempt {} of {}); retrying at {}: {}",
                 task.getOrderNumber(), attempts, MAX_ATTEMPTS, next, message);
     }

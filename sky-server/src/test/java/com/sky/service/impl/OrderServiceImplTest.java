@@ -20,6 +20,7 @@ import com.sky.mapper.AddressBookMapper;
 import com.sky.mapper.OrderDetailMapper;
 import com.sky.mapper.OrderMapper;
 import com.sky.mapper.ShoppingCartMapper;
+import com.sky.metrics.OrderMetrics;
 import com.sky.service.RefundService;
 import com.sky.utils.StripePayUtil;
 import com.sky.vo.OrderPaymentVO;
@@ -98,6 +99,8 @@ class OrderServiceImplTest {
     private TransactionTemplate transactionTemplate;
     @Mock
     private RefundService refundService;
+    @Mock
+    private OrderMetrics orderMetrics;
 
     @InjectMocks
     private OrderServiceImpl orderService;

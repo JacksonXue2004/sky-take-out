@@ -74,7 +74,8 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O - http://localhost:8080/user/shop/status >/dev/null || exit 1"]
+      # Actuator health covers the database and Redis connections, not just "the process answers".
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:9090/actuator/health >/dev/null || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 15
