@@ -12,7 +12,8 @@ public interface OrderService {
 
     OrderPaymentVO payment(OrdersPaymentDTO ordersPaymentDTO) throws Exception;
 
-    void paySuccess(String outTradeNo, String paymentIntentId);
+    /** Returns true when this call marked the order paid, false when it was no longer pending payment. */
+    boolean paySuccess(String outTradeNo, String paymentIntentId);
 
     void simulatePayment(String orderNumber);
 

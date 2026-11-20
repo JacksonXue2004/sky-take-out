@@ -289,7 +289,7 @@ public class OrderServiceImpl implements OrderService {
      * @param paymentIntentId Stripe's id for the payment, needed later to refund it;
      *                        null for a simulated payment
      */
-    public void paySuccess(String outTradeNo, String paymentIntentId) {
+    public boolean paySuccess(String outTradeNo, String paymentIntentId) {
         // Looked up by order number only: the Stripe webhook has no signed-in user.
         Orders ordersDB = orderMapper.getByNumber(outTradeNo);
         if (ordersDB == null) {
@@ -297,7 +297,7 @@ public class OrderServiceImpl implements OrderService {
         }
         if (!OrderTransition.PAY.canStartFrom(ordersDB.getStatus())) {
             log.info("Ignoring payment notification for order {} in status {}", outTradeNo, ordersDB.getStatus());
-            return;
+            return false;
         }
 
         Orders orders = Orders.builder()
@@ -309,7 +309,7 @@ public class OrderServiceImpl implements OrderService {
                 .build();
         if (orderMapper.updateStatus(orders, ordersDB.getStatus()) == 0) {
             log.info("Order {} was already updated by a concurrent payment notification", outTradeNo);
-            return;
+            return false;
         }
 
 
@@ -320,6 +320,7 @@ public class OrderServiceImpl implements OrderService {
 
         String json = JSON.toJSONString(map);
         webSocketServer.sendToAllClient(json);
+        return true;
     }
 
     /** Development checkout: marks one of the signed-in customer's own orders as paid. */

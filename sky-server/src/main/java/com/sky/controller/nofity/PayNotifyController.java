@@ -1,8 +1,6 @@
 package com.sky.controller.nofity;
 
-import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.JSONObject;
-import com.sky.service.OrderService;
+import com.sky.service.StripeWebhookService;
 import com.sky.utils.StripePayUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,6 +15,7 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 
 @RestController
@@ -25,14 +24,19 @@ import java.util.Map;
 public class PayNotifyController {
 
     @Autowired
-    private OrderService orderService;
+    private StripeWebhookService stripeWebhookService;
     @Autowired
     private StripePayUtil stripePayUtil;
 
     /**
      * Stripe webhook. The body is read as raw text because the signature covers the exact bytes
-     * Stripe sent. An invalid signature gets 400. A processing error gets 500 so that Stripe retries;
-     * paySuccess is idempotent, so a retried event cannot mark the order paid twice.
+     * Stripe sent.
+     * <ul>
+     *     <li>400: missing, wrong or expired signature. Nothing is stored, because anyone can send these.</li>
+     *     <li>500: processing failed, so Stripe delivers the event again later.</li>
+     *     <li>200: everything else, including events that were rejected after the signature check;
+     *     repeating those would not help, and they are kept in webhook_event for review.</li>
+     * </ul>
      */
     @PostMapping("/stripe")
     public Map<String, String> stripeWebhook(
@@ -44,39 +48,24 @@ public class PayNotifyController {
         Map<String, String> result = new HashMap<>();
 
         if (!stripePayUtil.verifyWebhookSignature(payload, stripeSignature)) {
-            log.warn("Rejected a Stripe webhook with a missing or invalid signature");
+            log.warn("Rejected a Stripe webhook with a missing, invalid or expired signature");
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             result.put("received", "invalid signature");
             return result;
         }
 
+        StripeWebhookService.Outcome outcome;
         try {
-            JSONObject event = JSON.parseObject(payload);
-            String eventType = event.getString("type");
-            if ("checkout.session.completed".equals(eventType)) {
-                handleCheckoutSessionCompleted(event);
-            } else {
-                log.info("Ignoring Stripe event type {}", eventType);
-            }
-            result.put("received", "ok");
-        } catch (Exception e) {
-            log.error("Failed to process a Stripe webhook", e);
+            outcome = stripeWebhookService.handle(payload);
+        } catch (RuntimeException e) {
+            // For example, the database is down and the event could not even be recorded.
+            log.error("Failed to record a Stripe webhook", e);
+            outcome = StripeWebhookService.Outcome.FAILED;
+        }
+        if (outcome == StripeWebhookService.Outcome.FAILED) {
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            result.put("received", "error");
         }
+        result.put("received", outcome.name().toLowerCase(Locale.ROOT));
         return result;
-    }
-
-    private void handleCheckoutSessionCompleted(JSONObject event) {
-        JSONObject session = event.getJSONObject("data").getJSONObject("object");
-        JSONObject metadata = session.getJSONObject("metadata");
-        String orderNumber = metadata != null ? metadata.getString("order_number") : null;
-        if (orderNumber == null) {
-            log.warn("Checkout session {} has no order_number metadata", session.getString("id"));
-            return;
-        }
-
-        log.info("Stripe checkout completed for order {}", orderNumber);
-        orderService.paySuccess(orderNumber, session.getString("payment_intent"));
     }
 }
