@@ -1,6 +1,6 @@
 # CI/CD and Docker
 
-This infrastructure packages the existing applications without changing their API contracts, authentication, order workflow, WebSocket path, or database schema.
+How the applications are packaged, tested and deployed.
 
 ## Container ports
 
@@ -9,10 +9,11 @@ This infrastructure packages the existing applications without changing their AP
 | Merchant React frontend | 80 | 8081 |
 | Customer React frontend | 80 | 3000 |
 | Spring Boot backend | 8080 | Internal only |
+| Actuator (health, metrics) | 9090 | Internal only |
 | MySQL | 3306 | 3307 |
 | Redis | 6379 | 6380 |
 
-The Nginx containers preserve the current routes: merchant `/api/*` maps to `/admin/*`, `/ws/*` retains WebSocket upgrade headers, and customer `/user/*` and `/notify/*` map to the same backend paths.
+The Nginx containers preserve the current routes: merchant `/api/*` maps to `/admin/*`, `/ws/*` retains WebSocket upgrade headers, and customer `/user/*` and `/notify/*` map to the same backend paths. Actuator is not proxied; the backend healthcheck calls it from inside the container.
 
 ## Local setup
 
@@ -24,13 +25,7 @@ Copy-Item .env.docker.example .env
 
 Replace every `replace-with-...` value.
 
-The repository does not generate or alter the database schema. Export the existing database before the first container start:
-
-```powershell
-mysqldump -u root -p --routines --triggers --single-transaction sky_take_out > docker/mysql/init/001-sky-take-out.sql
-```
-
-The dump is ignored by Git and is imported only when the `mysql-data` volume is empty.
+When the `mysql-data` volume is empty, MySQL initializes it from `docker/mysql/init`: the demo schema and menu (`001`), the demo merchant account (`002`) and the later schema changes (`003`). A volume created before `003-order-reliability.sql` existed needs that file applied once; [docker/mysql/init/README.md](../docker/mysql/init/README.md) has the command.
 
 Start and inspect the stack:
 
@@ -40,7 +35,7 @@ docker compose ps
 docker compose logs -f backend
 ```
 
-Open the merchant portal at `http://localhost:8081` and customer app at `http://localhost:3000`.
+Open the merchant portal at `http://localhost:8081` and customer app at `http://localhost:3000`. The local stack turns on the simulated checkout (`PAYMENT_SIMULATION_ENABLED`), because there is no Stripe account behind it.
 
 Stop containers while preserving data:
 
@@ -52,7 +47,7 @@ Do not use `docker compose down -v` unless permanent deletion of container datab
 
 ## CI
 
-`.github/workflows/ci.yml` packages the Java 8 backend, builds both React applications, and validates all three Docker images on Linux for pull requests and development pushes.
+`.github/workflows/ci.yml` runs the backend unit and integration tests (the integration tests start MySQL 8.0 and Redis 7 with Testcontainers on the runner's Docker), packages the Java 8 backend, builds both React applications, and validates all three Docker images on Linux for pull requests and development pushes.
 
 ## Continuous delivery
 
@@ -66,11 +61,13 @@ Images receive commit-SHA tags. The default branch also publishes `latest`; vers
 
 ## Server deployment
 
-Copy `compose.production.yml`, `docker/backend/application.yml`, an ignored `.env`, and the private first-time database dump to the server. If packages are private, authenticate first:
+Copy `compose.production.yml`, `docker/backend/application.yml`, the `docker/mysql/init` directory and an ignored `.env` to the server. If packages are private, authenticate first:
 
 ```bash
 echo "$GHCR_TOKEN" | docker login ghcr.io -u JacksonXue2004 --password-stdin
 ```
+
+If the server's database was created before `003-order-reliability.sql`, apply that file before starting the new images; the new backend needs its columns and tables.
 
 Deploy:
 
@@ -80,4 +77,6 @@ docker compose -f compose.production.yml up -d
 docker compose -f compose.production.yml ps
 ```
 
-For rollback, set `IMAGE_TAG` in `.env` to the previous release or `sha-<commit>`, then run the same pull and up commands. Application rollback does not replace database volumes.
+`compose.production.yml` leaves the simulated checkout off. Set `PAYMENT_SIMULATION_ENABLED=true` in `.env` only for a public demo that takes no real money, since it lets every customer mark their own orders paid. Real payments need the `STRIPE_*` settings and a Stripe webhook pointing at `https://<host>/notify/stripe`.
+
+For rollback, set `IMAGE_TAG` in `.env` to the previous release or `sha-<commit>`, then run the same pull and up commands. Application rollback does not replace database volumes, and an older image keeps working with the newer schema because `003` only adds columns, tables and indexes.
