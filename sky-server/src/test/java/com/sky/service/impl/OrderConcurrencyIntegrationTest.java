@@ -1,5 +1,6 @@
 package com.sky.service.impl;
 
+import com.alibaba.fastjson.JSONObject;
 import com.sky.dto.OrdersConfirmDTO;
 import com.sky.dto.OrdersRejectionDTO;
 import com.sky.entity.Orders;
@@ -9,6 +10,7 @@ import com.sky.service.OrderService;
 import com.sky.utils.StripePayUtil;
 import com.sky.support.MySqlIntegrationTest;
 import com.sky.support.TestOrders;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -26,6 +28,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /** Runs the real service and MyBatis mapper against MySQL in a Docker container. */
 class OrderConcurrencyIntegrationTest extends MySqlIntegrationTest {
@@ -40,6 +43,11 @@ class OrderConcurrencyIntegrationTest extends MySqlIntegrationTest {
     private OrderService orderService;
     @Autowired
     private OrderMapper orderMapper;
+
+    @BeforeEach
+    void stripeAcceptsRefunds() {
+        when(stripePayUtil.refund(anyString(), any(), anyString())).thenReturn(new JSONObject());
+    }
 
     @Test
     void confirmAndRejectRacingOnTheSameOrderLetExactlyOneWin() throws Exception {
@@ -78,7 +86,7 @@ class OrderConcurrencyIntegrationTest extends MySqlIntegrationTest {
         }
 
         // A refund is issued only for the rounds the rejection won, never for the losing request.
-        verify(stripePayUtil, times(rejectWins)).refund(anyString(), any());
+        verify(stripePayUtil, times(rejectWins)).refund(anyString(), any(), anyString());
     }
 
     private Long insertPaidOrderWaitingForMerchant() {

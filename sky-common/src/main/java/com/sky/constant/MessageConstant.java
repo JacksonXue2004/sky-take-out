@@ -22,6 +22,7 @@ public class MessageConstant {
     public static final String ORDER_STATUS_ERROR = "Invalid order status";
     public static final String ORDER_STATUS_CHANGED = "The order was updated by another request. Refresh and try again";
     public static final String ORDER_NOT_FOUND = "Order not found";
+    public static final String PAYMENT_PROVIDER_UNAVAILABLE = "The payment provider is unavailable. Please try again later";
     public static final String IDEMPOTENCY_KEY_INVALID = "Idempotency-Key must be 8 to 64 letters, digits, '-' or '_'";
 
 }

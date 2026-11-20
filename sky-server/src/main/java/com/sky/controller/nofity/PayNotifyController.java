@@ -77,6 +77,6 @@ public class PayNotifyController {
         }
 
         log.info("Stripe checkout completed for order {}", orderNumber);
-        orderService.paySuccess(orderNumber);
+        orderService.paySuccess(orderNumber, session.getString("payment_intent"));
     }
 }

@@ -22,6 +22,7 @@ public final class TestOrders {
                 .addressBookId(1L)
                 .orderTime(LocalDateTime.now())
                 .checkoutTime(Orders.PAID.equals(payStatus) ? LocalDateTime.now() : null)
+                .paymentIntentId(Orders.PAID.equals(payStatus) ? "pi_test_" + UUID.randomUUID().toString().replace("-", "") : null)
                 .amount(new BigDecimal("25.00"))
                 .deliveryStatus(1)
                 .tablewareStatus(1)

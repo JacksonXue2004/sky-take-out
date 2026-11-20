@@ -12,3 +12,7 @@ ALTER TABLE orders ADD UNIQUE KEY uk_orders_number (number);
 ALTER TABLE orders
     ADD COLUMN idempotency_key varchar(64) DEFAULT NULL,
     ADD UNIQUE KEY uk_orders_user_idempotency_key (user_id, idempotency_key);
+
+-- Stripe refunds name the payment by its PaymentIntent id, which the checkout webhook now stores.
+-- Orders paid through the simulated checkout have none.
+ALTER TABLE orders ADD COLUMN payment_intent_id varchar(255) DEFAULT NULL;

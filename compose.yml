@@ -59,6 +59,11 @@ services:
       ALIOSS_BUCKET_NAME: ${ALIOSS_BUCKET_NAME:-}
       SHOP_ADDRESS: ${SHOP_ADDRESS:-Demo Restaurant}
       BAIDU_MAP_AK: ${BAIDU_MAP_AK:-}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      STRIPE_SUCCESS_URL: ${STRIPE_SUCCESS_URL:-}
+      STRIPE_CANCEL_URL: ${STRIPE_CANCEL_URL:-}
     volumes:
       - ./docker/backend/application.yml:/app/config/application.yml:ro
     depends_on:

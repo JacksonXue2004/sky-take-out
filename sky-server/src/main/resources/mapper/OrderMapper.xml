@@ -6,11 +6,13 @@
     <insert id="insert" parameterType="Orders" useGeneratedKeys="true" keyProperty="id">
         insert into orders (number, status, user_id, address_book_id, order_time, checkout_time, pay_method, pay_status,
                             amount, remark, phone, address, consignee, estimated_delivery_time, delivery_status,
-                            pack_amount, tableware_number, tableware_status, idempotency_key)
+                            pack_amount, tableware_number, tableware_status, idempotency_key,
+                            payment_intent_id)
         values
                (#{number}, #{status}, #{userId}, #{addressBookId}, #{orderTime}, #{checkoutTime}, #{payMethod},
                 #{payStatus},#{amount}, #{remark}, #{phone}, #{address}, #{consignee}, #{estimatedDeliveryTime},
-                #{deliveryStatus},#{packAmount}, #{tablewareNumber}, #{tablewareStatus}, #{idempotencyKey})
+                #{deliveryStatus},#{packAmount}, #{tablewareNumber}, #{tablewareStatus}, #{idempotencyKey},
+                #{paymentIntentId})
     </insert>
 
     <update id="update" parameterType="com.sky.entity.Orders">
@@ -50,6 +52,7 @@
             status = #{orders.status},
             <if test="orders.payStatus != null">pay_status = #{orders.payStatus},</if>
             <if test="orders.checkoutTime != null">checkout_time = #{orders.checkoutTime},</if>
+            <if test="orders.paymentIntentId != null">payment_intent_id = #{orders.paymentIntentId},</if>
             <if test="orders.cancelReason != null">cancel_reason = #{orders.cancelReason},</if>
             <if test="orders.rejectionReason != null">rejection_reason = #{orders.rejectionReason},</if>
             <if test="orders.cancelTime != null">cancel_time = #{orders.cancelTime},</if>

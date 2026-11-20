@@ -101,4 +101,7 @@ public class Orders implements Serializable {
 
     /** Set when the client sent an Idempotency-Key header; unique per customer. */
     private String idempotencyKey;
+
+    /** Stripe's id for the payment (pi_...), needed to refund it; null for a simulated payment. */
+    private String paymentIntentId;
 }

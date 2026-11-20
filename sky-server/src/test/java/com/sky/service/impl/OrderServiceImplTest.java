@@ -1,5 +1,6 @@
 package com.sky.service.impl;
 
+import com.alibaba.fastjson.JSONObject;
 import com.sky.constant.MessageConstant;
 import com.sky.context.BaseContext;
 import com.sky.dto.OrdersCancelDTO;
@@ -14,11 +15,13 @@ import com.sky.entity.ShoppingCart;
 import com.sky.exception.AddressBookBusinessException;
 import com.sky.exception.OrderBusinessException;
 import com.sky.exception.ShoppingCartBusinessException;
+import com.sky.exception.StripeApiException;
 import com.sky.mapper.AddressBookMapper;
 import com.sky.mapper.OrderDetailMapper;
 import com.sky.mapper.OrderMapper;
 import com.sky.mapper.ShoppingCartMapper;
 import com.sky.utils.StripePayUtil;
+import com.sky.vo.OrderPaymentVO;
 import com.sky.vo.OrderSubmitVO;
 import com.sky.vo.OrderVO;
 import com.sky.websocket.WebSocketServer;
@@ -72,6 +75,7 @@ class OrderServiceImplTest {
     private static final Long ORDER_ID = 100L;
     private static final String ORDER_NUMBER = "1727850000000";
     private static final String IDEMPOTENCY_KEY = "3f6c2a9e-1b7d-4c55-9a0e-8d2f4b6c1e90";
+    private static final String PAYMENT_INTENT = "pi_test_order_100";
     private static final BigDecimal AMOUNT = new BigDecimal("25.00");
     private static final Integer[] ALL_STATUSES = {
             Orders.PENDING_PAYMENT, Orders.TO_BE_CONFIRMED, Orders.CONFIRMED,
@@ -98,6 +102,11 @@ class OrderServiceImplTest {
     @BeforeEach
     void signIn() {
         BaseContext.setCurrentId(USER_ID);
+    }
+
+    @BeforeEach
+    void stripeAcceptsRefunds() {
+        lenient().when(stripePayUtil.refund(any(), any(), any())).thenReturn(new JSONObject());
     }
 
     @BeforeEach
@@ -299,7 +308,19 @@ class OrderServiceImplTest {
         InOrder inOrder = inOrder(orderMapper, stripePayUtil);
         inOrder.verify(orderMapper).updateStatus(
                 argThat(o -> Orders.REFUND.equals(o.getPayStatus())), eq(Orders.TO_BE_CONFIRMED));
-        inOrder.verify(stripePayUtil).refund(ORDER_NUMBER, AMOUNT);
+        inOrder.verify(stripePayUtil).refund(PAYMENT_INTENT, AMOUNT, "refund-" + ORDER_NUMBER);
+    }
+
+    @Test
+    void anOrderPaidThroughTheSimulatedCheckoutIsNotRefundedAtStripe() throws Exception {
+        Orders simulated = order(Orders.TO_BE_CONFIRMED);
+        simulated.setPaymentIntentId(null);
+        when(orderMapper.getById(ORDER_ID)).thenReturn(simulated);
+        when(orderMapper.updateStatus(any(Orders.class), eq(Orders.TO_BE_CONFIRMED))).thenReturn(1);
+
+        Action.REJECT.run(orderService, ORDER_ID);
+
+        verify(stripePayUtil, never()).refund(any(), any(), any());
     }
 
     @Test
@@ -421,7 +442,7 @@ class OrderServiceImplTest {
         when(orderMapper.getByNumber(ORDER_NUMBER)).thenReturn(order(Orders.PENDING_PAYMENT));
         when(orderMapper.updateStatus(any(Orders.class), eq(Orders.PENDING_PAYMENT))).thenReturn(1);
 
-        orderService.paySuccess(ORDER_NUMBER);
+        orderService.paySuccess(ORDER_NUMBER, PAYMENT_INTENT);
 
         ArgumentCaptor<Orders> update = ArgumentCaptor.forClass(Orders.class);
         verify(orderMapper).updateStatus(update.capture(), eq(Orders.PENDING_PAYMENT));
@@ -432,14 +453,60 @@ class OrderServiceImplTest {
     }
 
     @Test
+    void paymentRecordsTheStripePaymentIntentForLaterRefunds() {
+        when(orderMapper.getByNumber(ORDER_NUMBER)).thenReturn(order(Orders.PENDING_PAYMENT));
+        when(orderMapper.updateStatus(any(Orders.class), eq(Orders.PENDING_PAYMENT))).thenReturn(1);
+
+        orderService.paySuccess(ORDER_NUMBER, PAYMENT_INTENT);
+
+        verify(orderMapper).updateStatus(argThat(o -> PAYMENT_INTENT.equals(o.getPaymentIntentId())),
+                eq(Orders.PENDING_PAYMENT));
+    }
+
+    @Test
+    void checkoutReturnsTheStripeSession() throws Exception {
+        when(orderMapper.getByNumberAndUserId(ORDER_NUMBER, USER_ID)).thenReturn(order(Orders.PENDING_PAYMENT));
+        JSONObject session = new JSONObject();
+        session.put("id", "cs_test_1");
+        session.put("url", "https://checkout.stripe.com/c/pay/cs_test_1");
+        when(stripePayUtil.createCheckoutSession(eq(ORDER_NUMBER), eq(AMOUNT), anyString())).thenReturn(session);
+
+        OrderPaymentVO vo = orderService.payment(paymentRequest());
+
+        assertEquals("cs_test_1", vo.getSessionId());
+        assertEquals("https://checkout.stripe.com/c/pay/cs_test_1", vo.getCheckoutUrl());
+    }
+
+    @Test
+    void anOrderThatIsNoLongerPendingCannotBePaid() {
+        Orders cancelled = order(Orders.CANCELLED);
+        cancelled.setPayStatus(Orders.UN_PAID);
+        when(orderMapper.getByNumberAndUserId(ORDER_NUMBER, USER_ID)).thenReturn(cancelled);
+
+        OrderBusinessException e = assertThrows(OrderBusinessException.class, () -> orderService.payment(paymentRequest()));
+        assertEquals(MessageConstant.ORDER_STATUS_ERROR, e.getMessage());
+        verifyNoInteractions(stripePayUtil);
+    }
+
+    @Test
+    void aStripeOutageDuringCheckoutIsReportedToTheCustomer() {
+        when(orderMapper.getByNumberAndUserId(ORDER_NUMBER, USER_ID)).thenReturn(order(Orders.PENDING_PAYMENT));
+        when(stripePayUtil.createCheckoutSession(anyString(), any(), anyString()))
+                .thenThrow(new StripeApiException(503, "Stripe returned 503", true));
+
+        OrderBusinessException e = assertThrows(OrderBusinessException.class, () -> orderService.payment(paymentRequest()));
+        assertEquals(MessageConstant.PAYMENT_PROVIDER_UNAVAILABLE, e.getMessage());
+    }
+
+    @Test
     void repeatedPaymentCallbackUpdatesAndAlertsOnlyOnce() {
         // The second callback sees the order as the first one left it.
         when(orderMapper.getByNumber(ORDER_NUMBER))
                 .thenReturn(order(Orders.PENDING_PAYMENT), order(Orders.TO_BE_CONFIRMED));
         when(orderMapper.updateStatus(any(Orders.class), eq(Orders.PENDING_PAYMENT))).thenReturn(1);
 
-        orderService.paySuccess(ORDER_NUMBER);
-        orderService.paySuccess(ORDER_NUMBER);
+        orderService.paySuccess(ORDER_NUMBER, PAYMENT_INTENT);
+        orderService.paySuccess(ORDER_NUMBER, PAYMENT_INTENT);
 
         verify(orderMapper, times(1)).updateStatus(any(Orders.class), any());
         verify(webSocketServer, times(1)).sendToAllClient(anyString());
@@ -450,7 +517,7 @@ class OrderServiceImplTest {
         when(orderMapper.getByNumber(ORDER_NUMBER)).thenReturn(order(Orders.PENDING_PAYMENT));
         when(orderMapper.updateStatus(any(Orders.class), eq(Orders.PENDING_PAYMENT))).thenReturn(0);
 
-        orderService.paySuccess(ORDER_NUMBER);
+        orderService.paySuccess(ORDER_NUMBER, PAYMENT_INTENT);
 
         verifyNoInteractions(webSocketServer);
     }
@@ -460,7 +527,7 @@ class OrderServiceImplTest {
         when(orderMapper.getByNumber(ORDER_NUMBER)).thenReturn(null);
 
         OrderBusinessException e = assertThrows(OrderBusinessException.class,
-                () -> orderService.paySuccess(ORDER_NUMBER));
+                () -> orderService.paySuccess(ORDER_NUMBER, PAYMENT_INTENT));
         assertEquals(MessageConstant.ORDER_NOT_FOUND, e.getMessage());
         verifyNoInteractions(webSocketServer);
     }
@@ -536,6 +603,12 @@ class OrderServiceImplTest {
         return result.stream();
     }
 
+    private static OrdersPaymentDTO paymentRequest() {
+        OrdersPaymentDTO dto = new OrdersPaymentDTO();
+        dto.setOrderNumber(ORDER_NUMBER);
+        return dto;
+    }
+
     private static Orders order(Integer status) {
         return orderOf(USER_ID, status);
     }
@@ -547,6 +620,7 @@ class OrderServiceImplTest {
                 .userId(userId)
                 .status(status)
                 .payStatus(Orders.PENDING_PAYMENT.equals(status) ? Orders.UN_PAID : Orders.PAID)
+                .paymentIntentId(Orders.PENDING_PAYMENT.equals(status) ? null : PAYMENT_INTENT)
                 .amount(AMOUNT)
                 .orderTime(LocalDateTime.now())
                 .build();

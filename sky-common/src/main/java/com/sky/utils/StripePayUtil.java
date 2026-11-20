@@ -2,18 +2,31 @@ package com.sky.utils;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
+import com.sky.exception.StripeApiException;
 import com.sky.properties.StripeProperties;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.http.NameValuePair;
+import org.apache.http.client.config.RequestConfig;
+import org.apache.http.client.entity.UrlEncodedFormEntity;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.message.BasicNameValuePair;
+import org.apache.http.util.EntityUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import javax.annotation.PreDestroy;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
+import java.io.IOException;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -21,40 +34,98 @@ import java.util.Map;
 @Slf4j
 public class StripePayUtil {
 
-    private static final String STRIPE_API = "https://api.stripe.com/v1";
     private static final long WEBHOOK_TOLERANCE_SECONDS = 300;
+    private static final RequestConfig TIMEOUTS = RequestConfig.custom()
+            .setConnectTimeout(5_000)
+            .setConnectionRequestTimeout(5_000)
+            .setSocketTimeout(15_000)
+            .build();
 
     @Autowired
     private StripeProperties stripeProperties;
 
+    private final CloseableHttpClient httpClient = HttpClients.custom().setDefaultRequestConfig(TIMEOUTS).build();
+
+    /**
+     * Creates a Stripe Checkout session for one order. The order number travels in the metadata,
+     * so the checkout.session.completed webhook can find the order again.
+     */
     public JSONObject createCheckoutSession(String orderNumber, BigDecimal amount, String description) {
-        try {
-            Map<String, String> paramMap = new HashMap<>();
-            paramMap.put("success_url", stripeProperties.getSuccessUrl() + "?session_id={CHECKOUT_SESSION_ID}");
-            paramMap.put("cancel_url", stripeProperties.getCancelUrl());
-            paramMap.put("mode", "payment");
+        Map<String, String> params = new LinkedHashMap<>();
+        params.put("mode", "payment");
+        params.put("success_url", stripeProperties.getSuccessUrl() + "?session_id={CHECKOUT_SESSION_ID}");
+        params.put("cancel_url", stripeProperties.getCancelUrl());
+        params.put("line_items[0][quantity]", "1");
+        params.put("line_items[0][price_data][currency]", "usd");
+        params.put("line_items[0][price_data][unit_amount]", String.valueOf(toCents(amount)));
+        params.put("line_items[0][price_data][product_data][name]", description);
+        params.put("metadata[order_number]", orderNumber);
+        params.put("payment_intent_data[metadata][order_number]", orderNumber);
+        // Asking again for the same order returns the same session instead of creating a second one.
+        return post("/checkout/sessions", params, "checkout-" + orderNumber);
+    }
 
+    /** Refunds a payment. Repeating the call with the same idempotency key never refunds twice. */
+    public JSONObject refund(String paymentIntentId, BigDecimal amount, String idempotencyKey) {
+        Map<String, String> params = new LinkedHashMap<>();
+        params.put("payment_intent", paymentIntentId);
+        params.put("amount", String.valueOf(toCents(amount)));
+        return post("/refunds", params, idempotencyKey);
+    }
 
-            paramMap.put("line_items[0][quantity]", "1");
-            paramMap.put("line_items[0][price_data][currency]", "usd");
-            paramMap.put("line_items[0][price_data][product_data][name]", description);
-            paramMap.put("line_items[0][price_data][unit_amount]", String.valueOf(amount.multiply(new BigDecimal(100)).longValue()));
-            paramMap.put("line_items[0][name]", description);
+    /** Stripe amounts are whole numbers of the smallest currency unit, so $25.00 is 2500. */
+    public static long toCents(BigDecimal amount) {
+        return amount.movePointRight(2).setScale(0, RoundingMode.HALF_UP).longValueExact();
+    }
 
-
-            paramMap.put("metadata[order_number]", orderNumber);
-
-            String response = HttpClientUtil.doPost4Json(
-                    STRIPE_API + "/checkout/sessions", paramMap);
-
-            JSONObject jsonObject = JSON.parseObject(response);
-            log.info("Application event: {}", jsonObject.getString("id"));
-
-            return jsonObject;
-        } catch (Exception e) {
-            log.error("Application event: {}", e);
-            throw new RuntimeException("Operation", e);
+    /**
+     * Stripe's API takes form-encoded parameters and authenticates with the secret key as a
+     * Bearer token. Any non-2xx response becomes a StripeApiException carrying Stripe's message.
+     */
+    private JSONObject post(String path, Map<String, String> params, String idempotencyKey) {
+        String secretKey = stripeProperties.getSecretKey();
+        if (secretKey == null || secretKey.isEmpty()) {
+            throw new StripeApiException(0, "The Stripe secret key is not configured", false);
         }
+        HttpPost request = new HttpPost(stripeProperties.getApiBase() + path);
+        request.setHeader("Authorization", "Bearer " + secretKey);
+        request.setHeader("Idempotency-Key", idempotencyKey);
+        List<NameValuePair> form = new ArrayList<>();
+        for (Map.Entry<String, String> param : params.entrySet()) {
+            form.add(new BasicNameValuePair(param.getKey(), param.getValue()));
+        }
+        request.setEntity(new UrlEncodedFormEntity(form, StandardCharsets.UTF_8));
+
+        try (CloseableHttpResponse response = httpClient.execute(request)) {
+            int status = response.getStatusLine().getStatusCode();
+            String body = response.getEntity() == null ? "" : EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8);
+            if (status >= 200 && status < 300) {
+                return JSON.parseObject(body);
+            }
+            boolean retryable = status == 429 || status >= 500;
+            throw new StripeApiException(status, "Stripe returned " + status + ": " + errorMessage(body), retryable);
+        } catch (IOException e) {
+            // Timeouts end up here. Stripe may still have done the work; a retry with the same
+            // Idempotency-Key then returns that result instead of doing it again.
+            throw new StripeApiException("Could not reach Stripe: " + e.getMessage(), e);
+        }
+    }
+
+    private static String errorMessage(String body) {
+        try {
+            JSONObject error = JSON.parseObject(body).getJSONObject("error");
+            if (error != null && error.getString("message") != null) {
+                return error.getString("message");
+            }
+        } catch (RuntimeException notJson) {
+            // Fall back to the raw body below.
+        }
+        return body.length() > 200 ? body.substring(0, 200) : body;
+    }
+
+    @PreDestroy
+    void close() throws IOException {
+        httpClient.close();
     }
 
     /**
@@ -111,50 +182,6 @@ public class StripePayUtil {
         } catch (Exception e) {
             log.warn("Could not verify the Stripe webhook signature", e);
             return false;
-        }
-    }
-
-    public String parseOrderNumberFromWebhook(String payload) {
-        JSONObject event = JSON.parseObject(payload);
-
-
-        String eventType = event.getString("type");
-        log.info("Application event: {}", eventType);
-
-        JSONObject data = event.getJSONObject("data");
-        JSONObject object = data.getJSONObject("object");
-
-
-        JSONObject metadata = object.getJSONObject("metadata");
-        if (metadata != null) {
-            return metadata.getString("order_number");
-        }
-
-
-        String paymentIntent = object.getString("payment_intent");
-        if (paymentIntent != null) {
-            return paymentIntent;
-        }
-
-        return null;
-    }
-
-    public JSONObject refund(String paymentIntentId, BigDecimal amount) {
-        try {
-            Map<String, String> paramMap = new HashMap<>();
-            paramMap.put("payment_intent", paymentIntentId);
-            paramMap.put("amount", String.valueOf(amount.multiply(new BigDecimal(100)).longValue()));
-
-            String response = HttpClientUtil.doPost4Json(
-                    STRIPE_API + "/refunds", paramMap);
-
-            JSONObject jsonObject = JSON.parseObject(response);
-            log.info("Application event: {}", jsonObject.getString("id"));
-
-            return jsonObject;
-        } catch (Exception e) {
-            log.error("Application event: {}", e);
-            throw new RuntimeException("Operation", e);
         }
     }
 }

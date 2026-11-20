@@ -12,6 +12,7 @@ import com.sky.entity.*;
 import com.sky.exception.AddressBookBusinessException;
 import com.sky.exception.OrderBusinessException;
 import com.sky.exception.ShoppingCartBusinessException;
+import com.sky.exception.StripeApiException;
 import com.sky.mapper.*;
 import com.sky.result.PageResult;
 import com.sky.service.OrderService;
@@ -252,16 +253,25 @@ public class OrderServiceImpl implements OrderService {
         }
 
 
-        if (orders.getPayStatus() == Orders.PAID) {
+        if (Orders.PAID.equals(orders.getPayStatus())) {
             throw new OrderBusinessException("This order has already been paid");
         }
+        // A cancelled or timed-out order must not be paid for any more.
+        if (!OrderTransition.PAY.canStartFrom(orders.getStatus())) {
+            throw new OrderBusinessException(MessageConstant.ORDER_STATUS_ERROR);
+        }
 
-
-        JSONObject jsonObject = stripePayUtil.createCheckoutSession(
-                ordersPaymentDTO.getOrderNumber(),
-                orders.getAmount(),
-                "Food Order #" + orders.getId()
-        );
+        JSONObject jsonObject;
+        try {
+            jsonObject = stripePayUtil.createCheckoutSession(
+                    ordersPaymentDTO.getOrderNumber(),
+                    orders.getAmount(),
+                    "Food Order #" + orders.getId()
+            );
+        } catch (StripeApiException e) {
+            log.error("Could not create a Stripe checkout session for order {}", orders.getNumber(), e);
+            throw new OrderBusinessException(MessageConstant.PAYMENT_PROVIDER_UNAVAILABLE);
+        }
 
 
         OrderPaymentVO vo = new OrderPaymentVO();
@@ -275,8 +285,11 @@ public class OrderServiceImpl implements OrderService {
      * Payment notifications can arrive more than once (provider retries, a double click on the
      * simulated payment). Only the first one moves the order out of PENDING_PAYMENT and alerts the
      * merchant; repeated calls change nothing and send no WebSocket message.
+     *
+     * @param paymentIntentId Stripe's id for the payment, needed later to refund it;
+     *                        null for a simulated payment
      */
-    public void paySuccess(String outTradeNo) {
+    public void paySuccess(String outTradeNo, String paymentIntentId) {
         // Looked up by order number only: the Stripe webhook has no signed-in user.
         Orders ordersDB = orderMapper.getByNumber(outTradeNo);
         if (ordersDB == null) {
@@ -292,6 +305,7 @@ public class OrderServiceImpl implements OrderService {
                 .status(OrderTransition.PAY.getTargetStatus())
                 .payStatus(Orders.PAID)
                 .checkoutTime(LocalDateTime.now())
+                .paymentIntentId(paymentIntentId)
                 .build();
         if (orderMapper.updateStatus(orders, ordersDB.getStatus()) == 0) {
             log.info("Order {} was already updated by a concurrent payment notification", outTradeNo);
@@ -313,7 +327,7 @@ public class OrderServiceImpl implements OrderService {
         if (orderMapper.getByNumberAndUserId(orderNumber, BaseContext.getCurrentId()) == null) {
             throw new OrderBusinessException(MessageConstant.ORDER_NOT_FOUND);
         }
-        paySuccess(orderNumber);
+        paySuccess(orderNumber, null);
     }
 
     public PageResult pageQuery4User(int pageNum, int pageSize, Integer status) {
@@ -562,8 +576,14 @@ public class OrderServiceImpl implements OrderService {
      * so a retried or concurrent cancellation cannot refund the same order twice.
      */
     private void refund(Orders ordersDB) {
-        JSONObject refund = stripePayUtil.refund(ordersDB.getNumber(), ordersDB.getAmount());
-        log.info("Refund requested for order {}: {}", ordersDB.getNumber(), refund);
+        if (ordersDB.getPaymentIntentId() == null) {
+            log.info("Order {} was paid through the simulated checkout; there is nothing to refund at Stripe",
+                    ordersDB.getNumber());
+            return;
+        }
+        JSONObject refund = stripePayUtil.refund(
+                ordersDB.getPaymentIntentId(), ordersDB.getAmount(), "refund-" + ordersDB.getNumber());
+        log.info("Refund {} created for order {}", refund.getString("id"), ordersDB.getNumber());
     }
 
     public void reminder(Long id) {
