@@ -85,6 +85,8 @@ public class OrderServiceImpl implements OrderService {
 
         Orders orders = new Orders();
         BeanUtils.copyProperties(ordersSubmitDTO, orders);
+        // Cart prices were copied from the menu by the server when each item was added.
+        orders.setAmount(cartTotal(shoppingCartList));
         orders.setOrderTime(LocalDateTime.now());
         orders.setPayStatus(Orders.UN_PAID);
         orders.setStatus(Orders.PENDING_PAYMENT);
@@ -119,6 +121,14 @@ public class OrderServiceImpl implements OrderService {
                 .build();
 
         return orderSubmitVO;
+    }
+
+    private static BigDecimal cartTotal(List<ShoppingCart> items) {
+        BigDecimal total = BigDecimal.ZERO;
+        for (ShoppingCart item : items) {
+            total = total.add(item.getAmount().multiply(BigDecimal.valueOf(item.getNumber())));
+        }
+        return total;
     }
 
     @Value("${sky.shop.address}")

@@ -35,6 +35,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Stream;
@@ -107,8 +108,6 @@ class OrderServiceImplTest {
         OrdersSubmitDTO dto = new OrdersSubmitDTO();
         dto.setAddressBookId(1L);
         dto.setPayMethod(1);
-        dto.setAmount(new BigDecimal("19.00"));
-        dto.setPackAmount(1);
         dto.setTablewareNumber(1);
         dto.setTablewareStatus(1);
         dto.setDeliveryStatus(1);
@@ -123,6 +122,25 @@ class OrderServiceImplTest {
         verify(orderDetailMapper).insertBatch(argThat(details ->
                 details.size() == 1 && ORDER_ID.equals(details.get(0).getOrderId())));
         verify(shoppingCartMapper).deleteByUserId(USER_ID);
+    }
+
+    @Test
+    void submitOrderComputesTheTotalFromTheCart() {
+        when(addressBookMapper.getById(1L)).thenReturn(
+                AddressBook.builder().id(1L).userId(USER_ID).consignee("Alex").phone("4085550100").detail("1 Main St").build());
+        when(shoppingCartMapper.list(any(ShoppingCart.class))).thenReturn(Arrays.asList(
+                ShoppingCart.builder().name("Burger").dishId(3L).number(2).amount(new BigDecimal("9.50")).build(),
+                ShoppingCart.builder().name("Fries").dishId(4L).number(1).amount(new BigDecimal("3.25")).build()));
+
+        OrdersSubmitDTO dto = new OrdersSubmitDTO();
+        dto.setAddressBookId(1L);
+        OrderSubmitVO result = orderService.submitOrder(dto);
+
+        ArgumentCaptor<Orders> saved = ArgumentCaptor.forClass(Orders.class);
+        verify(orderMapper).insert(saved.capture());
+        // 2 x 9.50 + 1 x 3.25
+        assertEquals(0, new BigDecimal("22.25").compareTo(saved.getValue().getAmount()));
+        assertEquals(0, new BigDecimal("22.25").compareTo(result.getOrderAmount()));
     }
 
     @Test

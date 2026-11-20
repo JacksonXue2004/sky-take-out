@@ -29,7 +29,7 @@ export default function CheckoutPage() {
     if (!items.length) return toast.error('Your cart is empty');
     setSubmitting(true);
     try {
-      const submitted = await submitOrder({ addressBookId: addressId, payMethod: 1, remark, tablewareStatus: 1, tablewareNumber: 1, deliveryStatus: 1, packAmount: 0, amount: totalAmount });
+      const submitted = await submitOrder({ addressBookId: addressId, payMethod: 1, remark, tablewareStatus: 1, tablewareNumber: 1, deliveryStatus: 1 });
       await simulatePayment(submitted.data.orderNumber);
       clearLocalCart();
       toast.success('Order placed and payment simulated');

@@ -4,9 +4,12 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
 
 import java.io.Serializable;
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+/**
+ * What the customer sends when placing an order. There is deliberately no amount field:
+ * the server computes the total from the cart.
+ */
 @Data
 public class OrdersSubmitDTO implements Serializable {
 
@@ -24,8 +27,4 @@ public class OrdersSubmitDTO implements Serializable {
     private Integer tablewareNumber;
 
     private Integer tablewareStatus;
-
-    private Integer packAmount;
-
-    private BigDecimal amount;
 }
