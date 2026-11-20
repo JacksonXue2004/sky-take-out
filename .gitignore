@@ -34,3 +34,4 @@ sky-server/src/main/resources/application.yml
 docker/mysql/init/*.sql
 !docker/mysql/init/001-demo-seed.sql
 !docker/mysql/init/002-demo-admin.sql
+!docker/mysql/init/003-order-reliability.sql

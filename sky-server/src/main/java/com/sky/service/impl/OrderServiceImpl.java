@@ -36,6 +36,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -89,7 +90,7 @@ public class OrderServiceImpl implements OrderService {
         orders.setOrderTime(LocalDateTime.now());
         orders.setPayStatus(Orders.UN_PAID);
         orders.setStatus(Orders.PENDING_PAYMENT);
-        orders.setNumber(String.valueOf(System.currentTimeMillis()));
+        orders.setNumber(newOrderNumber());
         orders.setAddress(addressBook.getDetail());
         orders.setPhone(addressBook.getPhone());
         orders.setConsignee(addressBook.getConsignee());
@@ -120,6 +121,14 @@ public class OrderServiceImpl implements OrderService {
                 .build();
 
         return orderSubmitVO;
+    }
+
+    /**
+     * 32 hex characters from a random UUID. A timestamp gave two orders placed in the same
+     * millisecond the same number; the UNIQUE KEY on orders.number now backs this up.
+     */
+    private static String newOrderNumber() {
+        return UUID.randomUUID().toString().replace("-", "");
     }
 
     private static BigDecimal cartTotal(List<ShoppingCart> items) {

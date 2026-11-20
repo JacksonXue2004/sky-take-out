@@ -44,8 +44,10 @@ import java.util.List;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -144,6 +146,25 @@ class OrderServiceImplTest {
         // 2 x 9.50 + 1 x 3.25
         assertEquals(0, new BigDecimal("22.25").compareTo(saved.getValue().getAmount()));
         assertEquals(0, new BigDecimal("22.25").compareTo(result.getOrderAmount()));
+    }
+
+    @Test
+    void everyOrderGetsItsOwnRandomNumber() {
+        when(addressBookMapper.getById(1L)).thenReturn(AddressBook.builder().id(1L).userId(USER_ID).build());
+        when(shoppingCartMapper.list(any(ShoppingCart.class))).thenReturn(Collections.singletonList(
+                ShoppingCart.builder().name("Burger").dishId(3L).number(1).amount(new BigDecimal("9.50")).build()));
+        OrdersSubmitDTO dto = new OrdersSubmitDTO();
+        dto.setAddressBookId(1L);
+
+        orderService.submitOrder(dto);
+        orderService.submitOrder(dto);
+
+        ArgumentCaptor<Orders> saved = ArgumentCaptor.forClass(Orders.class);
+        verify(orderMapper, times(2)).insert(saved.capture());
+        String first = saved.getAllValues().get(0).getNumber();
+        String second = saved.getAllValues().get(1).getNumber();
+        assertTrue(first.matches("[0-9a-f]{32}"), first);
+        assertNotEquals(first, second);
     }
 
     @Test

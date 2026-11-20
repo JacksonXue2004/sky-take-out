@@ -7,19 +7,12 @@ import com.sky.exception.OrderBusinessException;
 import com.sky.mapper.OrderMapper;
 import com.sky.service.OrderService;
 import com.sky.utils.StripePayUtil;
+import com.sky.support.MySqlIntegrationTest;
+import com.sky.support.TestOrders;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.containers.MySQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.utility.DockerImageName;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -34,27 +27,10 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-/**
- * Runs the real service and MyBatis mapper against MySQL in a Docker container.
- * Skipped automatically when Docker is not available.
- */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@Testcontainers(disabledWithoutDocker = true)
-class OrderConcurrencyIntegrationTest {
+/** Runs the real service and MyBatis mapper against MySQL in a Docker container. */
+class OrderConcurrencyIntegrationTest extends MySqlIntegrationTest {
 
     private static final int ROUNDS = 20;
-
-    @Container
-    static final MySQLContainer<?> MYSQL = new MySQLContainer<>(DockerImageName.parse("mysql:8.0"))
-            .withDatabaseName("sky_take_out")
-            .withInitScript("db/orders-schema.sql");
-
-    @DynamicPropertySource
-    static void datasource(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.druid.url", MYSQL::getJdbcUrl);
-        registry.add("spring.datasource.druid.username", MYSQL::getUsername);
-        registry.add("spring.datasource.druid.password", MYSQL::getPassword);
-    }
 
     // Refunds go to Stripe in production; here we only count them.
     @MockBean
@@ -106,19 +82,7 @@ class OrderConcurrencyIntegrationTest {
     }
 
     private Long insertPaidOrderWaitingForMerchant() {
-        Orders orders = Orders.builder()
-                .number(String.valueOf(System.nanoTime()))
-                .status(Orders.TO_BE_CONFIRMED)
-                .payStatus(Orders.PAID)
-                .payMethod(1)
-                .userId(1L)
-                .addressBookId(1L)
-                .orderTime(LocalDateTime.now())
-                .checkoutTime(LocalDateTime.now())
-                .amount(new BigDecimal("25.00"))
-                .deliveryStatus(1)
-                .tablewareStatus(1)
-                .build();
+        Orders orders = TestOrders.paidOrderWaitingForMerchant(1L);
         orderMapper.insert(orders);
         return orders.getId();
     }
