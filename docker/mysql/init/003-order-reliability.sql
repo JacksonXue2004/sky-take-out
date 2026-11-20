@@ -35,3 +35,24 @@ CREATE TABLE webhook_event (
   UNIQUE KEY uk_webhook_event_event_id (event_id),
   KEY idx_webhook_event_status (status, received_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Refund outbox. Cancelling or rejecting a paid order no longer calls Stripe inside the database
+-- transaction; the transaction writes a task here, and RefundWorker sends it afterwards with retries.
+-- One task per order (the unique order_id), so an order can never be refunded twice.
+CREATE TABLE refund_task (
+  id bigint NOT NULL AUTO_INCREMENT,
+  order_id bigint NOT NULL,
+  order_number varchar(50) NOT NULL,
+  payment_intent_id varchar(255) NOT NULL,
+  amount decimal(10,2) NOT NULL,
+  status varchar(20) NOT NULL,
+  attempts int NOT NULL DEFAULT 0,
+  next_attempt_at datetime NOT NULL,
+  last_error varchar(500) DEFAULT NULL,
+  stripe_refund_id varchar(255) DEFAULT NULL,
+  created_at datetime NOT NULL,
+  updated_at datetime NOT NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_refund_task_order_id (order_id),
+  KEY idx_refund_task_due (status, next_attempt_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

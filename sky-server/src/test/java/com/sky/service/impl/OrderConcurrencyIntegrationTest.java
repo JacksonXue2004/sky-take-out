@@ -10,11 +10,14 @@ import com.sky.service.OrderService;
 import com.sky.utils.StripePayUtil;
 import com.sky.support.MySqlIntegrationTest;
 import com.sky.support.TestOrders;
-import org.junit.jupiter.api.BeforeEach;
+import com.sky.task.RefundWorker;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.jdbc.core.JdbcTemplate;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -28,6 +31,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /** Runs the real service and MyBatis mapper against MySQL in a Docker container. */
@@ -35,7 +39,7 @@ class OrderConcurrencyIntegrationTest extends MySqlIntegrationTest {
 
     private static final int ROUNDS = 20;
 
-    // Refunds go to Stripe in production; here we only count them.
+    // Refunds go to Stripe in production; here the calls are only counted.
     @MockBean
     private StripePayUtil stripePayUtil;
 
@@ -44,14 +48,17 @@ class OrderConcurrencyIntegrationTest extends MySqlIntegrationTest {
     @Autowired
     private OrderMapper orderMapper;
 
-    @BeforeEach
-    void stripeAcceptsRefunds() {
-        when(stripePayUtil.refund(anyString(), any(), anyString())).thenReturn(new JSONObject());
-    }
+    @Autowired
+    private RefundWorker refundWorker;
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @Test
     void confirmAndRejectRacingOnTheSameOrderLetExactlyOneWin() throws Exception {
+        // This test counts every refund the worker sends, so start with an empty outbox.
+        jdbcTemplate.update("delete from refund_task");
         int rejectWins = 0;
+        List<Long> rejectedOrders = new ArrayList<>();
         ExecutorService pool = Executors.newFixedThreadPool(2);
         try {
             for (int round = 0; round < ROUNDS; round++) {
@@ -79,14 +86,34 @@ class OrderConcurrencyIntegrationTest extends MySqlIntegrationTest {
                 assertEquals(confirmWon ? Orders.CONFIRMED : Orders.CANCELLED, finalStatus);
                 if (rejectWon) {
                     rejectWins++;
+                    rejectedOrders.add(orderId);
                 }
             }
         } finally {
             pool.shutdownNow();
         }
 
-        // A refund is issued only for the rounds the rejection won, never for the losing request.
+        // Nothing called Stripe while the requests ran: refunds only went into the outbox,
+        // one for each round the rejection won and none for the losing request.
+        verifyNoInteractions(stripePayUtil);
+        for (Long orderId : rejectedOrders) {
+            assertEquals("PENDING", refundStatus(orderId));
+        }
+
+        // The worker then sends each queued refund exactly once.
+        JSONObject refund = new JSONObject();
+        refund.put("id", "re_test_1");
+        when(stripePayUtil.refund(anyString(), any(), anyString())).thenReturn(refund);
+        refundWorker.processDueRefunds();
+        refundWorker.processDueRefunds();
         verify(stripePayUtil, times(rejectWins)).refund(anyString(), any(), anyString());
+        for (Long orderId : rejectedOrders) {
+            assertEquals("SUCCEEDED", refundStatus(orderId));
+        }
+    }
+
+    private String refundStatus(Long orderId) {
+        return jdbcTemplate.queryForObject("select status from refund_task where order_id = ?", String.class, orderId);
     }
 
     private Long insertPaidOrderWaitingForMerchant() {

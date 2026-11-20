@@ -7,6 +7,7 @@ import com.sky.entity.WebhookEvent;
 import com.sky.mapper.OrderMapper;
 import com.sky.mapper.WebhookEventMapper;
 import com.sky.service.OrderService;
+import com.sky.service.RefundService;
 import com.sky.service.StripeWebhookService;
 import com.sky.utils.StripePayUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -41,6 +42,8 @@ public class StripeWebhookServiceImpl implements StripeWebhookService {
     private OrderMapper orderMapper;
     @Autowired
     private OrderService orderService;
+    @Autowired
+    private RefundService refundService;
 
     @Override
     public Outcome handle(String payload) {
@@ -120,10 +123,18 @@ public class StripeWebhookServiceImpl implements StripeWebhookService {
             return Result.ignored(session.orderNumber, "The order was already marked paid by this payment");
         }
         // Typically the 15-minute payment timeout cancelled the order before the customer finished paying.
-        log.error("Order {} was paid at Stripe ({}) but is in status {}; the payment must be refunded",
+        // The money was taken for an order that will not be made, so it goes back.
+        if (session.paymentIntent == null) {
+            log.error("Order {} was paid at Stripe but is in status {}, and the event names no payment to refund",
+                    session.orderNumber, current.getStatus());
+            return Result.rejected(session.orderNumber, "The order is in status " + current.getStatus()
+                    + " and no longer takes payment; the payment must be refunded by hand");
+        }
+        refundService.enqueue(current.getId(), current.getNumber(), session.paymentIntent, current.getAmount());
+        log.warn("Order {} was paid at Stripe ({}) after it moved to status {}; queued a refund",
                 session.orderNumber, session.paymentIntent, current.getStatus());
         return Result.rejected(session.orderNumber, "The order is in status " + current.getStatus()
-                + " and no longer takes payment; payment " + session.paymentIntent + " must be refunded");
+                + " and no longer takes payment; payment " + session.paymentIntent + " must be refunded (refund queued)");
     }
 
     private WebhookEvent store(String eventId, String type, String payload, String status, String error) {

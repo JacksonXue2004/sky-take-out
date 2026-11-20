@@ -16,6 +16,7 @@ import com.sky.exception.StripeApiException;
 import com.sky.mapper.*;
 import com.sky.result.PageResult;
 import com.sky.service.OrderService;
+import com.sky.service.RefundService;
 import com.sky.utils.HttpClientUtil;
 import com.sky.utils.StripePayUtil;
 import com.sky.vo.OrderPaymentVO;
@@ -64,6 +65,8 @@ public class OrderServiceImpl implements OrderService {
     private UserMapper userMapper;
     @Autowired
     private StripePayUtil stripePayUtil;
+    @Autowired
+    private RefundService refundService;
     @Autowired
     private WebSocketServer webSocketServer;
 
@@ -573,8 +576,10 @@ public class OrderServiceImpl implements OrderService {
     }
 
     /**
-     * Called only after this request has won the status change,
-     * so a retried or concurrent cancellation cannot refund the same order twice.
+     * Called only after this request has won the status change, inside the same transaction.
+     * It only queues the refund (the outbox); RefundWorker sends it to Stripe after the commit.
+     * A slow or failing Stripe therefore cannot hold the order row locked or undo the cancellation,
+     * and a cancellation that rolls back leaves no refund behind.
      */
     private void refund(Orders ordersDB) {
         if (ordersDB.getPaymentIntentId() == null) {
@@ -582,9 +587,7 @@ public class OrderServiceImpl implements OrderService {
                     ordersDB.getNumber());
             return;
         }
-        JSONObject refund = stripePayUtil.refund(
-                ordersDB.getPaymentIntentId(), ordersDB.getAmount(), "refund-" + ordersDB.getNumber());
-        log.info("Refund {} created for order {}", refund.getString("id"), ordersDB.getNumber());
+        refundService.enqueue(ordersDB.getId(), ordersDB.getNumber(), ordersDB.getPaymentIntentId(), ordersDB.getAmount());
     }
 
     public void reminder(Long id) {

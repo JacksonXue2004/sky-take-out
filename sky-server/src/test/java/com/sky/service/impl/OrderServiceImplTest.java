@@ -20,6 +20,7 @@ import com.sky.mapper.AddressBookMapper;
 import com.sky.mapper.OrderDetailMapper;
 import com.sky.mapper.OrderMapper;
 import com.sky.mapper.ShoppingCartMapper;
+import com.sky.service.RefundService;
 import com.sky.utils.StripePayUtil;
 import com.sky.vo.OrderPaymentVO;
 import com.sky.vo.OrderSubmitVO;
@@ -95,6 +96,8 @@ class OrderServiceImplTest {
     private WebSocketServer webSocketServer;
     @Mock
     private TransactionTemplate transactionTemplate;
+    @Mock
+    private RefundService refundService;
 
     @InjectMocks
     private OrderServiceImpl orderService;
@@ -102,11 +105,6 @@ class OrderServiceImplTest {
     @BeforeEach
     void signIn() {
         BaseContext.setCurrentId(USER_ID);
-    }
-
-    @BeforeEach
-    void stripeAcceptsRefunds() {
-        lenient().when(stripePayUtil.refund(any(), any(), any())).thenReturn(new JSONObject());
     }
 
     @BeforeEach
@@ -285,7 +283,7 @@ class OrderServiceImplTest {
                 () -> action.run(orderService, ORDER_ID));
         assertEquals(MessageConstant.ORDER_STATUS_ERROR, e.getMessage());
         verify(orderMapper, never()).updateStatus(any(), any());
-        verifyNoInteractions(stripePayUtil);
+        verifyNoInteractions(stripePayUtil, refundService);
     }
 
     @Test
@@ -305,10 +303,12 @@ class OrderServiceImplTest {
 
         Action.REJECT.run(orderService, ORDER_ID);
 
-        InOrder inOrder = inOrder(orderMapper, stripePayUtil);
+        InOrder inOrder = inOrder(orderMapper, refundService);
         inOrder.verify(orderMapper).updateStatus(
                 argThat(o -> Orders.REFUND.equals(o.getPayStatus())), eq(Orders.TO_BE_CONFIRMED));
-        inOrder.verify(stripePayUtil).refund(PAYMENT_INTENT, AMOUNT, "refund-" + ORDER_NUMBER);
+        inOrder.verify(refundService).enqueue(ORDER_ID, ORDER_NUMBER, PAYMENT_INTENT, AMOUNT);
+        // The refund is only queued; nothing reaches Stripe inside the order transaction.
+        verifyNoInteractions(stripePayUtil);
     }
 
     @Test
@@ -320,7 +320,7 @@ class OrderServiceImplTest {
 
         Action.REJECT.run(orderService, ORDER_ID);
 
-        verify(stripePayUtil, never()).refund(any(), any(), any());
+        verifyNoInteractions(refundService, stripePayUtil);
     }
 
     @Test
@@ -329,7 +329,7 @@ class OrderServiceImplTest {
         when(orderMapper.updateStatus(any(Orders.class), eq(Orders.TO_BE_CONFIRMED))).thenReturn(0);
 
         assertThrows(OrderBusinessException.class, () -> Action.REJECT.run(orderService, ORDER_ID));
-        verifyNoInteractions(stripePayUtil);
+        verifyNoInteractions(stripePayUtil, refundService);
     }
 
     @Test

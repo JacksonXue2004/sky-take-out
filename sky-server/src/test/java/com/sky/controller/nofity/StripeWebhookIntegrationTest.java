@@ -139,6 +139,11 @@ class StripeWebhookIntegrationTest extends MySqlIntegrationTest {
         Map<String, Object> stored = storedEvent(eventId);
         assertEquals("REJECTED", stored.get("status"));
         assertTrue(String.valueOf(stored.get("error")).contains("must be refunded"));
+        // The money goes back through the refund outbox.
+        Map<String, Object> refund = jdbcTemplate.queryForMap(
+                "select status, payment_intent_id from refund_task where order_id = ?", cancelled.getId());
+        assertEquals("PENDING", refund.get("status"));
+        assertEquals("pi_test_late", refund.get("payment_intent_id"));
     }
 
     private ResponseEntity<String> deliver(String payload, String signature) {

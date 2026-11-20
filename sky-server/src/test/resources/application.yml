@@ -36,6 +36,9 @@ sky:
     address: Test Restaurant
   baidu:
     ak: ""
+  refund:
+    # Tests run the refund worker themselves; keep the schedule from firing during a test.
+    initial-delay-ms: 3600000
   stripe:
     secret-key: ""
     publishable-key: ""

@@ -5,6 +5,7 @@ import com.sky.entity.WebhookEvent;
 import com.sky.mapper.OrderMapper;
 import com.sky.mapper.WebhookEventMapper;
 import com.sky.service.OrderService;
+import com.sky.service.RefundService;
 import com.sky.service.StripeWebhookService.Outcome;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -40,6 +41,8 @@ class StripeWebhookServiceImplTest {
     private OrderMapper orderMapper;
     @Mock
     private OrderService orderService;
+    @Mock
+    private RefundService refundService;
 
     @InjectMocks
     private StripeWebhookServiceImpl service;
@@ -156,6 +159,7 @@ class StripeWebhookServiceImplTest {
         assertEquals(Outcome.REJECTED, service.handle(checkoutCompleted("evt_1", ORDER_NUMBER, 2500, PAYMENT_INTENT)));
 
         assertTrue(finishedEvent().getError().contains("must be refunded"), finishedEvent().getError());
+        verify(refundService).enqueue(100L, ORDER_NUMBER, PAYMENT_INTENT, new BigDecimal("25.00"));
     }
 
     @Test
