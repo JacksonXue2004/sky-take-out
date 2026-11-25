@@ -1,0 +1,25 @@
+# Settings for running the whole stack on one small EC2 instance (t3.micro has 1 GiB of memory).
+# setup.sh lists this file after compose.production.yml in COMPOSE_FILE, so plain `docker compose`
+# commands on the server use both files.
+services:
+  mysql:
+    command:
+      # MySQL 8's defaults assume a dedicated database server. These keep it to about 200 MiB.
+      - --performance-schema=OFF
+      - --innodb-buffer-pool-size=64M
+      - --innodb-log-buffer-size=8M
+      - --max-connections=50
+      - --table-open-cache=256
+      - --tmp-table-size=16M
+      - --max-heap-table-size=16M
+      # No replica reads the binary log, so it would only fill the disk.
+      - --disable-log-bin
+
+  backend:
+    environment:
+      # Caps the heap so MySQL and the operating system keep their share of the memory, and restarts
+      # the container on an OutOfMemoryError instead of leaving a half-working JVM.
+      JAVA_TOOL_OPTIONS: -Xmx256m -XX:+UseSerialGC -XX:+ExitOnOutOfMemoryError
+    healthcheck:
+      # A burstable instance starts Spring Boot slowly; failed checks in this window do not count.
+      start_period: 180s

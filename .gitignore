@@ -25,6 +25,8 @@ dist/
 !.env.docker.example
 sky-server/src/main/resources/application-dev.yml
 sky-server/src/main/resources/application.yml
+# Written by deploy/aws/setup.sh on the server
+admin-password.txt
 
 # Local extraction and migration working directories
 .asset-extract/
