@@ -30,6 +30,19 @@ T3 instances launch with unlimited CPU credits. An idle demo averages far below 
 
 ## Launch the instance
 
+### From CloudShell
+
+Wait until the `Publish Docker images` run for the latest `main` has finished, or the instance pulls the previous images. Then, in the AWS console with **US East (N. Virginia)** selected, open CloudShell (the terminal icon in the top bar) and run:
+
+```bash
+curl -fsSLO https://raw.githubusercontent.com/JacksonXue2004/sky-take-out/main/deploy/aws/launch.sh
+bash launch.sh
+```
+
+[deploy/aws/launch.sh](../deploy/aws/launch.sh) looks up the default VPC, a subnet whose zone offers t3.micro, and the latest Amazon Linux 2023 image, then asks before creating anything. On `y` it creates the `sky-take-out` security group (80 and 8081 open; SSH only through EC2 Instance Connect), launches the instance with a 20 GiB gp3 volume and [deploy/aws/user-data.sh](../deploy/aws/user-data.sh), and prints the addresses. It will not start a second instance named `sky-take-out`.
+
+### From the launch wizard
+
 In the EC2 console, in **US East (N. Virginia)**, choose **Launch instance**:
 
 | Setting | Value |
