@@ -61,6 +61,8 @@ Images receive commit-SHA tags. The default branch also publishes `latest`; vers
 
 ## Server deployment
 
+For one AWS EC2 instance, [DEPLOY-AWS.md](DEPLOY-AWS.md) does these steps with a user-data script.
+
 Copy `compose.production.yml`, `docker/backend/application.yml`, the `docker/mysql/init` directory and an ignored `.env` to the server. If packages are private, authenticate first:
 
 ```bash
