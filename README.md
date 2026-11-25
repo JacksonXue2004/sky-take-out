@@ -213,7 +213,7 @@ If you created the `mysql-data` volume before `docker/mysql/init/003-order-relia
 | Customer app | http://localhost:3000 | Create an account in the UI |
 | Merchant portal | http://localhost:8081 | `admin` / `123456` |
 
-The included demo database contains only non-sensitive English menu data. Prices and UI amounts are displayed in US dollars.
+The included demo database contains only non-sensitive English menu data: 30 dishes and 4 combos, with photos from Wikimedia Commons that ship with the frontends ([credits](sky-frontend-user/public/images/dishes/CREDITS.md)). Prices and UI amounts are displayed in US dollars.
 
 ## Five-minute product walkthrough
 

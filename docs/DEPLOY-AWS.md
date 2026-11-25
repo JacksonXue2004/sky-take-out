@@ -98,4 +98,4 @@ Useful checks on the instance: `sudo docker compose ps`, `sudo docker compose lo
 - **No backups.** Everything lives on one volume. An EBS snapshot is a cheap copy if the data matters.
 - **Simulated payments**, as in the local demo: customers mark their own orders paid, and no money moves.
 - **Public merchant portal.** Anyone with the password can change the menu and orders.
-- **No dish pictures.** The demo menu's images were hosted by the original course and no longer exist, and uploading new ones needs Aliyun OSS credentials.
+- **Image upload needs Aliyun OSS.** The demo menu's photos ship with the frontends, but a merchant who uploads a new dish photo needs Aliyun OSS credentials.
