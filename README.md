@@ -307,7 +307,7 @@ Every push and every pull request to `main` runs:
 
 After changes reach `main`, a version tag such as `v1.0.0` or a manual workflow dispatch can publish immutable images to GitHub Container Registry. See [the detailed CI/CD and Docker guide](docs/CI-CD-DOCKER.md).
 
-To run them on one small VM, free for a year with Azure for Students or paid on AWS, see [the deployment guide](docs/DEPLOY.md).
+To put them online, see [the deployment guide](docs/DEPLOY.md): free on Render, Vercel and TiDB Cloud, or on one small VM, free for a year with Azure for Students.
 
 ## Repository structure
 
@@ -318,7 +318,8 @@ sky-server/           Spring Boot application
 sky-common/           Shared backend utilities
 sky-pojo/             Backend entities, DTOs, and VOs
 docker/               Runtime configuration, demo seed and schema migrations
-deploy/               First-boot and setup scripts for one VM; launchers for Azure and AWS
+deploy/               Setup scripts for one VM, launchers for Azure and AWS, and the TiDB Cloud database setup
+render.yaml           Render Blueprint for the backend and its Redis cache
 scripts/              Stripe webhook simulator and k6 load test
 .github/workflows/    CI and image publishing workflows
 ```

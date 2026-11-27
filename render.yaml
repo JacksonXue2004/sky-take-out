@@ -1,0 +1,65 @@
+# Render Blueprint for the backend and its Redis cache, both on free instances. The database is a
+# TiDB Cloud Starter cluster prepared by deploy/init-database.sh, and the two frontends run on
+# Vercel (see vercel.json in each). The steps are in docs/DEPLOY.md.
+services:
+  - type: web
+    name: sky-take-out-api
+    runtime: image
+    image:
+      url: ghcr.io/jacksonxue2004/sky-backend:latest
+    plan: free
+    # Same place as the TiDB cluster (AWS Oregon, us-west-2): one request can make several queries.
+    region: oregon
+    # Public, needs no token, and answers as soon as the application is up.
+    healthCheckPath: /user/shop/status
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      # The three values deploy/init-database.sh prints. Render asks for them when it creates the
+      # Blueprint.
+      - key: DB_HOST
+        sync: false
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_PORT
+        value: "4000"
+      - key: DB_SSL_MODE
+        value: VERIFY_IDENTITY
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: sky-take-out-cache
+          property: connectionString
+      - key: REDIS_DATABASE
+        value: "0"
+      - key: SKY_JWT_ADMIN_SECRET
+        generateValue: true
+      - key: SKY_JWT_USER_SECRET
+        generateValue: true
+      # Customers mark their own orders paid and no money moves. For demos only.
+      - key: PAYMENT_SIMULATION_ENABLED
+        value: "true"
+      # A free instance has 0.1 CPU. Limited to that in a local test, Spring Boot took 8 minutes to
+      # start with the default JIT compilers and about 2 with only C1. The heap cap keeps the JVM
+      # inside the instance's 512 MB.
+      - key: JAVA_TOOL_OPTIONS
+        value: -Xmx256m -XX:+UseSerialGC -XX:TieredStopAtLevel=1 -XX:+ExitOnOutOfMemoryError
+      # Swagger's scan of the controllers adds about 20 seconds more, and the demo has no use for
+      # the API docs page.
+      - key: SPRINGFOX_DOCUMENTATION_ENABLED
+        value: "false"
+      # No actuator port: Render forwards only one port, and its health check uses the path above.
+      - key: MANAGEMENT_PORT
+        value: "-1"
+
+  - type: keyvalue
+    name: sky-take-out-cache
+    plan: free
+    region: oregon
+    # Reachable only from this workspace's services in the same region.
+    ipAllowList: []
+    # It holds the menu cache and the shop's open or closed flag. A free instance loses its data when
+    # it restarts; the menu is then read from the database again and the shop counts as open.
+    maxmemoryPolicy: allkeys-lru

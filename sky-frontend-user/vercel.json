@@ -1,0 +1,12 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    { "source": "/user/:path*", "destination": "https://sky-take-out-api.onrender.com/user/:path*" },
+    { "source": "/notify/:path*", "destination": "https://sky-take-out-api.onrender.com/notify/:path*" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ],
+  "headers": [
+    { "source": "/user/:path*", "headers": [{ "key": "x-vercel-enable-rewrite-caching", "value": "0" }] },
+    { "source": "/notify/:path*", "headers": [{ "key": "x-vercel-enable-rewrite-caching", "value": "0" }] }
+  ]
+}

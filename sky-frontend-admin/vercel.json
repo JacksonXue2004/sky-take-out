@@ -1,0 +1,11 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "VITE_WS_URL=wss://sky-take-out-api.onrender.com/ws npm run build",
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "https://sky-take-out-api.onrender.com/admin/:path*" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ],
+  "headers": [
+    { "source": "/api/:path*", "headers": [{ "key": "x-vercel-enable-rewrite-caching", "value": "0" }] }
+  ]
+}
