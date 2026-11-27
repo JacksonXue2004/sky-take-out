@@ -18,6 +18,7 @@ import com.sky.metrics.OrderMetrics;
 import com.sky.result.PageResult;
 import com.sky.service.OrderService;
 import com.sky.service.RefundService;
+import com.sky.service.ShopService;
 import com.sky.utils.HttpClientUtil;
 import com.sky.utils.StripePayUtil;
 import com.sky.vo.OrderPaymentVO;
@@ -69,6 +70,8 @@ public class OrderServiceImpl implements OrderService {
     @Autowired
     private RefundService refundService;
     @Autowired
+    private ShopService shopService;
+    @Autowired
     private OrderMetrics orderMetrics;
     @Autowired
     private WebSocketServer webSocketServer;
@@ -108,6 +111,11 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private OrderSubmitVO createOrder(OrdersSubmitDTO ordersSubmitDTO, Long userId, String idempotencyKey) {
+        // Only new orders: a retry of an order placed before the shop closed got it back above.
+        if (!shopService.isOpen()) {
+            throw new OrderBusinessException(MessageConstant.SHOP_CLOSED);
+        }
+
         AddressBook addressBook = addressBookMapper.getById(ordersSubmitDTO.getAddressBookId());
         // Another customer's address is treated as missing.
         if (addressBook == null || !userId.equals(addressBook.getUserId())) {

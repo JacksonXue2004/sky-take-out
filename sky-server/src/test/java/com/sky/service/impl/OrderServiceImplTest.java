@@ -22,6 +22,7 @@ import com.sky.mapper.OrderMapper;
 import com.sky.mapper.ShoppingCartMapper;
 import com.sky.metrics.OrderMetrics;
 import com.sky.service.RefundService;
+import com.sky.service.ShopService;
 import com.sky.utils.StripePayUtil;
 import com.sky.vo.OrderPaymentVO;
 import com.sky.vo.OrderSubmitVO;
@@ -101,6 +102,8 @@ class OrderServiceImplTest {
     private RefundService refundService;
     @Mock
     private OrderMetrics orderMetrics;
+    @Mock
+    private ShopService shopService;
 
     @InjectMocks
     private OrderServiceImpl orderService;
@@ -108,6 +111,11 @@ class OrderServiceImplTest {
     @BeforeEach
     void signIn() {
         BaseContext.setCurrentId(USER_ID);
+    }
+
+    @BeforeEach
+    void shopIsOpen() {
+        lenient().when(shopService.isOpen()).thenReturn(true);
     }
 
     @BeforeEach
@@ -245,6 +253,33 @@ class OrderServiceImplTest {
                 () -> orderService.submitOrder(new OrdersSubmitDTO(), "not a key!"));
         assertEquals(MessageConstant.IDEMPOTENCY_KEY_INVALID, e.getMessage());
         verifyNoInteractions(orderMapper, shoppingCartMapper);
+    }
+
+    @Test
+    void aClosedShopTakesNoNewOrders() {
+        when(shopService.isOpen()).thenReturn(false);
+
+        OrdersSubmitDTO dto = new OrdersSubmitDTO();
+        dto.setAddressBookId(1L);
+
+        OrderBusinessException e = assertThrows(OrderBusinessException.class,
+                () -> orderService.submitOrder(dto, IDEMPOTENCY_KEY));
+        assertEquals(MessageConstant.SHOP_CLOSED, e.getMessage());
+        verifyNoInteractions(addressBookMapper, shoppingCartMapper);
+        verify(orderMapper, never()).insert(any());
+    }
+
+    @Test
+    void aRetryOfAnOrderPlacedBeforeTheShopClosedStillGetsThatOrder() {
+        lenient().when(shopService.isOpen()).thenReturn(false);
+        Orders first = order(Orders.PENDING_PAYMENT);
+        when(orderMapper.getByUserIdAndIdempotencyKey(USER_ID, IDEMPOTENCY_KEY)).thenReturn(first);
+
+        OrderSubmitVO result = orderService.submitOrder(new OrdersSubmitDTO(), IDEMPOTENCY_KEY);
+
+        assertEquals(ORDER_ID, result.getId());
+        verify(shopService, never()).isOpen();
+        verify(orderMapper, never()).insert(any());
     }
 
     @Test

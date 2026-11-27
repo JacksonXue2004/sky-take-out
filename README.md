@@ -90,6 +90,7 @@ Cancelling or rejecting a paid order queues a refund.
 - **Circuit breaker.** A Resilience4j breaker opens when at least half of the last 10 Stripe calls (and at least 5 calls) failed on Stripe's side, then fails calls fast for 30 seconds.
 - **Ownership checks.** Customer endpoints load orders and addresses through user-scoped lookups. Another customer's order is reported as "not found", so ids cannot be probed.
 - **Credentials.** Passwords are hashed with BCrypt; old MD5 hashes are upgraded at the next successful login. Login requests and JWTs are no longer logged, and password fields are left out of `toString`.
+- **A closed shop takes no orders.** Placing an order reads the shop's status from MySQL and refuses a new order while the shop is closed; a retry of an order placed before it closed still gets that order back. The customer pages read a copy that Redis keeps for up to 5 minutes.
 - **Database-enforced uniqueness.** UNIQUE keys back every "only once" rule: order numbers (random UUIDs), idempotency keys per customer, webhook event ids, and refund tasks per order.
 
 ## Trade-offs
@@ -102,6 +103,7 @@ Cancelling or rejecting a paid order queues a refund.
 | Payment timeout by polling every minute | Delay queue | Simple, and safe to run on every instance because of the conditional updates. Orders may be cancelled up to a minute late; `(status, order_time)` is indexed for the scan. |
 | 200 for signed but rejected webhooks | 4xx | Stripe retries non-2xx responses for days, and retrying cannot fix a wrong amount. The stored event is the audit trail. |
 | Hand-written form POSTs to Stripe | `stripe-java` | Two calls, with full control over timeouts, idempotency keys and error mapping, tested against a local stand-in for Stripe. A wider use of Stripe would justify the SDK. |
+| Shop status in MySQL, with a copy in Redis | Redis only, as in the course | A Redis restart, which empties a free Render Key Value instance, silently reopened a closed shop. Orders are checked against MySQL, so a stale copy can only show the wrong badge, never let an order through. |
 | Actuator on a separate internal port | Same port behind a filter | Nothing outside Docker can reach it, and it keeps Actuator's mappings away from springfox, which breaks on them in Spring Boot 2.6+. |
 
 ## Load test

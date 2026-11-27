@@ -24,5 +24,7 @@ public class MessageConstant {
     public static final String ORDER_NOT_FOUND = "Order not found";
     public static final String PAYMENT_PROVIDER_UNAVAILABLE = "The payment provider is unavailable. Please try again later";
     public static final String IDEMPOTENCY_KEY_INVALID = "Idempotency-Key must be 8 to 64 letters, digits, '-' or '_'";
+    public static final String SHOP_CLOSED = "The shop is closed and is not taking orders right now";
+    public static final String SHOP_STATUS_INVALID = "The shop status must be 1 (open) or 0 (closed)";
 
 }
