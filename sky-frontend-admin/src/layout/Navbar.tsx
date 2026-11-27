@@ -49,7 +49,10 @@ const Navbar: React.FC = () => {
 
     const clientId = Math.random().toString(36).substr(2)
     const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const socketUrl = `${proto}//${window.location.host}/ws/${clientId}`
+    // Behind nginx the socket goes to this host. Vercel cannot proxy WebSockets, so a Vercel build
+    // sets VITE_WS_URL to the backend's own address (see vercel.json).
+    const socketBase = import.meta.env.VITE_WS_URL || `${proto}//${window.location.host}/ws`
+    const socketUrl = `${socketBase}/${clientId}`
 
     let ws: WebSocket | null = null
     try {
