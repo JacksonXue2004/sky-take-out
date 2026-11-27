@@ -8,10 +8,10 @@ ALTER TABLE orders ADD UNIQUE KEY uk_orders_number (number);
 
 -- A retried or double-clicked checkout sends the same Idempotency-Key header, and the second request
 -- gets the first order back instead of creating another. MySQL does not compare NULLs in a unique
--- key, so orders placed without a key are unaffected.
-ALTER TABLE orders
-    ADD COLUMN idempotency_key varchar(64) DEFAULT NULL,
-    ADD UNIQUE KEY uk_orders_user_idempotency_key (user_id, idempotency_key);
+-- key, so orders placed without a key are unaffected. Two statements, because TiDB cannot index a
+-- column added in the same ALTER TABLE.
+ALTER TABLE orders ADD COLUMN idempotency_key varchar(64) DEFAULT NULL;
+ALTER TABLE orders ADD UNIQUE KEY uk_orders_user_idempotency_key (user_id, idempotency_key);
 
 -- Stripe refunds name the payment by its PaymentIntent id, which the checkout webhook now stores.
 -- Orders paid through the simulated checkout have none.

@@ -11,6 +11,8 @@ MySQL runs the `.sql` files in this directory in name order, and only when it in
 
 The backend integration tests start MySQL from these same files, so every migration is tested before it reaches a real database.
 
+The files also run unchanged on TiDB, which the Render deployment uses: [deploy/init-database.sh](../../deploy/init-database.sh) applies them to a TiDB Cloud cluster. TiDB cannot index a column in the same `ALTER TABLE` that adds it, so a new migration keeps those in separate statements.
+
 ## Updating an existing database
 
 A volume created before `003-order-reliability.sql` existed does not get it automatically. Apply it once, with the stack running:
