@@ -1,5 +1,6 @@
 server:
-  port: 8080
+  # Platforms such as Render tell the application which port to listen on in PORT.
+  port: ${PORT:8080}
 
 spring:
   profiles:
@@ -9,10 +10,14 @@ spring:
   datasource:
     druid:
       driver-class-name: com.mysql.cj.jdbc.Driver
-      url: jdbc:mysql://${DB_HOST:mysql}:${DB_PORT:3306}/${DB_NAME:sky_take_out}?serverTimezone=UTC&useUnicode=true&characterEncoding=utf-8&zeroDateTimeBehavior=convertToNull&useSSL=false&allowPublicKeyRetrieval=true&allowMultiQueries=true
+      # DB_SSL_MODE: DISABLED inside docker compose; VERIFY_IDENTITY for a database reached over the
+      # internet, such as TiDB Cloud, so the connection is encrypted and the server's certificate checked.
+      url: jdbc:mysql://${DB_HOST:mysql}:${DB_PORT:3306}/${DB_NAME:sky_take_out}?serverTimezone=UTC&useUnicode=true&characterEncoding=utf-8&zeroDateTimeBehavior=convertToNull&sslMode=${DB_SSL_MODE:DISABLED}&allowPublicKeyRetrieval=true&allowMultiQueries=true
       username: ${DB_USERNAME:sky_app}
       password: ${DB_PASSWORD}
   redis:
+    # A redis:// URL, such as the one Render gives a Key Value instance, replaces host, port and password.
+    url: ${REDIS_URL:}
     host: ${REDIS_HOST:redis}
     port: ${REDIS_PORT:6379}
     password: ${REDIS_PASSWORD}

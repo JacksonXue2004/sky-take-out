@@ -17,6 +17,9 @@ FROM eclipse-temurin:8-jre-alpine
 WORKDIR /app
 RUN addgroup -S sky && adduser -S sky -G sky
 COPY --from=builder /workspace/sky-server/target/sky-server-*.jar /app/sky-server.jar
+# The settings ship with the image, so it also runs where nothing mounts the file, such as Render.
+# The compose files mount the same file over it.
+COPY docker/backend/application.yml /app/config/application.yml
 USER sky
 
 EXPOSE 8080
