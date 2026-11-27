@@ -1,4 +1,5 @@
-# Settings for running the whole stack on one small EC2 instance (t3.micro has 1 GiB of memory).
+# Settings for running the whole stack on one small VM with 1 GiB of memory, such as an Azure
+# B2ats v2 or B1s or an AWS t3.micro.
 # setup.sh lists this file after compose.production.yml in COMPOSE_FILE, so plain `docker compose`
 # commands on the server use both files.
 services:

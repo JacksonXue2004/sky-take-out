@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Starts Sky Take-Out on one host: compose.production.yml plus the small-instance settings in
-# deploy/aws/compose.ec2.yml. user-data.sh runs it on the first boot of an EC2 instance.
+# Starts Sky Take-Out on one host: compose.production.yml plus the small-host settings in
+# deploy/compose.small-host.yml. first-boot.sh runs it on the first boot of a new VM.
 #
 # Safe to run again: an existing .env, database and merchant password are kept.
 set -euo pipefail
-cd "$(dirname "$0")/../.."
+cd "$(dirname "$0")/.."
 
 # MD5 of "123456", the merchant password that docker/mysql/init/002-demo-admin.sql seeds.
 SEEDED_ADMIN_MD5=e10adc3949ba59abbe56e057f20f883e
@@ -18,8 +18,8 @@ if [ ! -f .env ]; then
   (
     umask 077
     cat > .env <<EOF
-# Written by deploy/aws/setup.sh. Keep it private: it holds the database, Redis and JWT secrets.
-COMPOSE_FILE=compose.production.yml:deploy/aws/compose.ec2.yml
+# Written by deploy/setup.sh. Keep it private: it holds the database, Redis and JWT secrets.
+COMPOSE_FILE=compose.production.yml:deploy/compose.small-host.yml
 COMPOSE_PATH_SEPARATOR=:
 DB_PASSWORD=$(openssl rand -hex 16)
 MYSQL_ROOT_PASSWORD=$(openssl rand -hex 16)
@@ -71,17 +71,26 @@ fi
 
 docker compose up -d --wait --wait-timeout 600
 
+# The address to print, from the metadata service of AWS (IMDSv2) or Google Cloud. Azure's does
+# not report Standard public IPs, so deploy/azure/launch.sh prints that address itself.
 public_ip() {
-  local token
-  token=$(curl -s -m 2 -X PUT http://169.254.169.254/latest/api/token \
+  local token ip=""
+  token=$(curl -sf -m 2 -X PUT http://169.254.169.254/latest/api/token \
     -H 'X-aws-ec2-metadata-token-ttl-seconds: 60' 2>/dev/null) || true
   if [ -n "$token" ]; then
-    curl -s -m 2 -H "X-aws-ec2-metadata-token: $token" \
-      http://169.254.169.254/latest/meta-data/public-ipv4 2>/dev/null || true
+    ip=$(curl -sf -m 2 -H "X-aws-ec2-metadata-token: $token" \
+      http://169.254.169.254/latest/meta-data/public-ipv4 2>/dev/null) || true
+  fi
+  if [ -z "$ip" ]; then
+    ip=$(curl -sf -m 2 -H 'Metadata-Flavor: Google' \
+      http://169.254.169.254/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip 2>/dev/null) || true
+  fi
+  if [[ $ip =~ ^[0-9]+(\.[0-9]+){3}$ ]]; then
+    echo "$ip"
   fi
 }
 host=$(public_ip)
-host=${host:-localhost}
+host=${host:-<public IP>}
 customer_port=$(sed -n 's/^CUSTOMER_PORT=//p' .env | tr -d '\r')
 admin_port=$(sed -n 's/^ADMIN_PORT=//p' .env | tr -d '\r')
 

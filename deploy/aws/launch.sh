@@ -6,7 +6,7 @@
 #   bash launch.sh
 #
 # It creates a security group (ports 80 and 8081 open to everyone, SSH only from EC2 Instance
-# Connect) and one t3.micro whose first boot runs deploy/aws/user-data.sh. If an instance named
+# Connect) and one t3.micro whose first boot runs deploy/first-boot.sh. If an instance named
 # sky-take-out already exists, it stops instead of starting a second one.
 set -euo pipefail
 
@@ -53,7 +53,7 @@ sg=$(text ec2 describe-security-groups --filters "Name=vpc-id,Values=$vpc" "Name
 ami=$(text ssm get-parameter --name /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64 \
   --query Parameter.Value)
 user_data=$(mktemp)
-curl -fsSL "$RAW/deploy/aws/user-data.sh" -o "$user_data"
+curl -fsSL "$RAW/deploy/first-boot.sh" -o "$user_data"
 
 # Everything above only reads. Ask before creating anything.
 echo "Ready to launch one $INSTANCE_TYPE with a 20 GiB gp3 volume in $REGION, from $ami."
