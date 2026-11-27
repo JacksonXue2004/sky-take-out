@@ -15,6 +15,9 @@ RUN mvn -B -ntp -pl sky-server -am -DskipTests package
 FROM eclipse-temurin:8-jre-alpine
 
 WORKDIR /app
+# Java 8 gets its elliptic-curve algorithms from libsunec.so, which needs libgcc_s. Without it the JVM
+# offers no ECDHE or ECDSA in TLS, and servers that require them, such as TiDB Cloud, end the handshake.
+RUN apk add --no-cache libgcc
 RUN addgroup -S sky && adduser -S sky -G sky
 COPY --from=builder /workspace/sky-server/target/sky-server-*.jar /app/sky-server.jar
 # The settings ship with the image, so it also runs where nothing mounts the file, such as Render.
