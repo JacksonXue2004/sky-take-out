@@ -60,6 +60,6 @@ services:
     region: oregon
     # Reachable only from this workspace's services in the same region.
     ipAllowList: []
-    # It holds the menu cache and the shop's open or closed flag. A free instance loses its data when
-    # it restarts; the menu is then read from the database again and the shop counts as open.
+    # It caches the menu and the shop's open or closed status. A free instance loses its data when it
+    # restarts, and the backend then reads both from the database again.
     maxmemoryPolicy: allkeys-lru

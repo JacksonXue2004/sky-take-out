@@ -53,21 +53,21 @@ If Render gives the service another address, because someone else already has th
 1. Sign up at [vercel.com](https://vercel.com). Choose **Add New**, then **Project**, and import this repository with **Root Directory** set to `sky-frontend-user`. Vercel detects Vite; deploy.
 2. Import the repository a second time with the root directory `sky-frontend-admin`.
 
-The project names become the addresses, such as `https://sky-take-out.vercel.app/` for the customer app. The merchant user is `admin`, with the password from step 1.
+The project names become the addresses, `https://<project>.vercel.app/`, with a suffix that Vercel adds when another account has the name. The merchant user is `admin`, with the password from step 1.
 
 ### What to expect
 
 - **The backend sleeps.** Render stops a free web service after 15 minutes without requests and starts it again on the next one. Spring Boot needs about 2 minutes to start on 0.1 CPU; render.yaml sets the JVM and Spring options that got it from 8 minutes down to that, measured locally with the same CPU and memory limits. Until it is up, the customer app shows an error, because it gives up on a request after 10 seconds. Reload after a couple of minutes.
 - **Keeping it awake.** An uptime monitor that requests `https://sky-take-out-api.onrender.com/user/shop/status` every 10 minutes keeps the backend running. That uses at most 744 of the workspace's 750 free instance hours a month, so it works only while this is the workspace's one free web service.
 - **Scheduled jobs pause** while the backend sleeps. Cancelling unpaid orders after 15 minutes and completing orders at night run again once it is up.
-- **Redis can lose its data.** Render may restart a free Key Value instance at any time, and its data is gone. That costs nothing here: the backend reads the menu from the database again, and the shop counts as open.
+- **Redis can lose its data.** Render may restart a free Key Value instance at any time, and its data is gone. That costs nothing here: Redis only holds copies, and the backend reads the menu and the shop's open or closed status from the database again.
 - **Free plan limits.** Render suspends a workspace's free services when they use more bandwidth than the plan includes, until the next month, unless a card is on file.
 
 ### Updating
 
 - **Frontends.** Vercel deploys both projects again on every push to `main`.
 - **Backend.** Render does not redeploy an image-backed service by itself. After the `Publish Docker images` workflow finishes, open `sky-take-out-api` and choose **Manual Deploy**, then **Deploy latest reference**.
-- **Database.** A release that adds a schema file under `docker/mysql/init` needs that file applied once, for example in the cluster's SQL Editor in the TiDB Cloud console.
+- **Database.** A release that adds a schema file under `docker/mysql/init` needs that file applied once, before the backend is deployed, for example in the cluster's SQL Editor in the TiDB Cloud console.
 
 ### Clean up
 

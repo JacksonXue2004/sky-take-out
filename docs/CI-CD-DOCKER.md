@@ -69,7 +69,7 @@ Copy `compose.production.yml`, `docker/backend/application.yml`, the `docker/mys
 echo "$GHCR_TOKEN" | docker login ghcr.io -u JacksonXue2004 --password-stdin
 ```
 
-If the server's database was created before `003-order-reliability.sql`, apply that file before starting the new images; the new backend needs its columns and tables.
+If the server's database is older than a file in `docker/mysql/init`, such as `003-order-reliability.sql` or `005-shop-status.sql`, apply the missing files before starting the new images; the new backend needs their columns and tables.
 
 Deploy:
 
