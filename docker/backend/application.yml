@@ -22,6 +22,10 @@ spring:
     port: ${REDIS_PORT:6379}
     password: ${REDIS_PASSWORD}
     database: ${REDIS_DATABASE:10}
+    # Redis only holds copies, and every caller carries on without it when a call fails. With the
+    # client's default 60-second timeout, each request waited that long while Redis was unreachable.
+    timeout: 2s
+    connect-timeout: 3s
 
 management:
   server:
